@@ -72,16 +72,18 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signIn = (email, password) =>
-    supabase.auth.signInWithPassword({ email, password })
+  // Step 1: send OTP to email
+  const sendOtp = (email) =>
+    supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
 
-  const signUp = (email, password) =>
-    supabase.auth.signUp({ email, password })
+  // Step 2: verify the 6-digit OTP
+  const verifyOtp = (email, token) =>
+    supabase.auth.verifyOtp({ email, token, type: 'email' })
 
   const signOut = () => supabase.auth.signOut()
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, sendOtp, verifyOtp, signOut }}>
       {children}
     </AuthContext.Provider>
   )
