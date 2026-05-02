@@ -7,6 +7,8 @@ import EditRoutine from './pages/EditRoutine'
 import ActiveWorkout from './pages/ActiveWorkout'
 import History from './pages/History'
 import SessionDetail from './pages/SessionDetail'
+import ExerciseHistory from './pages/ExerciseHistory'
+import ExerciseDetail from './pages/ExerciseDetail'
 import Settings from './pages/Settings'
 
 function ProtectedRoute({ children }) {
@@ -31,6 +33,8 @@ function AppRoutes() {
       <Route path="/workout/:id" element={<ProtectedRoute><ActiveWorkout /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
       <Route path="/history/:id" element={<ProtectedRoute><SessionDetail /></ProtectedRoute>} />
+      <Route path="/exercise-history" element={<ProtectedRoute><ExerciseHistory /></ProtectedRoute>} />
+      <Route path="/exercise-history/:exerciseId" element={<ProtectedRoute><ExerciseDetail /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

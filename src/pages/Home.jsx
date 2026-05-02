@@ -4,6 +4,7 @@ import { useRoutines } from '../hooks/useRoutines'
 import RoutineTile from '../components/RoutineTile'
 import BottomSheet from '../components/BottomSheet'
 import ThemeToggle from '../components/ThemeToggle'
+import BottomNav from '../components/BottomNav'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -56,7 +57,7 @@ export default function Home() {
       </div>
 
       {/* Routine grid */}
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '8px 16px 100px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '8px 16px 120px' }}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}>
             <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Loading…</div>
@@ -82,13 +83,13 @@ export default function Home() {
         )}
       </div>
 
-      {/* FAB */}
+      {/* FAB — sits above bottom nav */}
       <button
         onClick={() => navigate('/routines/new')}
         aria-label="New routine"
         style={{
           position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 28px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 76px)',
           right: 20,
           width: 56,
           height: 56,
@@ -208,6 +209,8 @@ export default function Home() {
           </div>
         )}
       </BottomSheet>
+
+      <BottomNav />
     </div>
   )
 }
