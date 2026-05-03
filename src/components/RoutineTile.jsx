@@ -1,9 +1,40 @@
-export default function RoutineTile({ routine, onClick }) {
+import { useRef } from 'react'
+
+export default function RoutineTile({ routine, onClick, onLongPress }) {
   const exerciseCount = routine.routine_exercises?.length || 0
+  const pressTimer = useRef(null)
+  const didLongPress = useRef(false)
+
+  const handleTouchStart = (e) => {
+    didLongPress.current = false
+    e.currentTarget.style.transform = 'scale(0.97)'
+    pressTimer.current = setTimeout(() => {
+      didLongPress.current = true
+      e.currentTarget.style.transform = 'scale(1)'
+      onLongPress?.()
+    }, 600)
+  }
+
+  const handleTouchEnd = (e) => {
+    clearTimeout(pressTimer.current)
+    e.currentTarget.style.transform = 'scale(1)'
+  }
+
+  const handleTouchMove = () => {
+    clearTimeout(pressTimer.current)
+  }
+
+  const handleClick = () => {
+    if (didLongPress.current) return
+    onClick?.()
+  }
 
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
@@ -21,8 +52,6 @@ export default function RoutineTile({ routine, onClick }) {
         boxShadow: 'var(--shadow)',
         textAlign: 'center',
       }}
-      onTouchStart={e => e.currentTarget.style.transform = 'scale(0.97)'}
-      onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
     >
       <div style={{ fontSize: 40, lineHeight: 1 }}>{routine.emoji || '💪'}</div>
       <div className="font-display" style={{ fontSize: 20, color: 'var(--text-primary)', letterSpacing: 1 }}>

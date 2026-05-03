@@ -209,6 +209,7 @@ export default function ActiveWorkout() {
         <SetLogger
           key={`${exerciseIndex}-${setCount}`}
           setNumber={setCount}
+          targetSets={currentExercise.default_sets || null}
           exerciseType={exerciseType}
           initialWeight={nextSetWeight}
           initialReps={nextSetReps}

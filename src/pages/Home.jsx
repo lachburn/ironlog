@@ -8,8 +8,18 @@ import BottomNav from '../components/BottomNav'
 
 export default function Home() {
   const navigate = useNavigate()
-  const { routines, loading } = useRoutines()
+  const { routines, loading, deleteRoutine } = useRoutines()
   const [selectedRoutine, setSelectedRoutine] = useState(null)
+  const [deletingRoutine, setDeletingRoutine] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!deletingRoutine) return
+    setDeleting(true)
+    await deleteRoutine(deletingRoutine.id)
+    setDeletingRoutine(null)
+    setDeleting(false)
+  }
 
   return (
     <div style={{
@@ -77,7 +87,12 @@ export default function Home() {
             gap: 12,
           }}>
             {routines.map(r => (
-              <RoutineTile key={r.id} routine={r} onClick={() => setSelectedRoutine(r)} />
+              <RoutineTile
+                key={r.id}
+                routine={r}
+                onClick={() => setSelectedRoutine(r)}
+                onLongPress={() => setDeletingRoutine(r)}
+              />
             ))}
           </div>
         )}
@@ -113,7 +128,7 @@ export default function Home() {
         +
       </button>
 
-      {/* Routine bottom sheet */}
+      {/* Routine action sheet */}
       <BottomSheet
         open={!!selectedRoutine}
         onClose={() => setSelectedRoutine(null)}
@@ -163,6 +178,7 @@ export default function Home() {
                     </div>
                     <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
                       {re.default_sets} sets × {re.default_reps} reps
+                      {re.default_weight > 0 ? ` @ ${re.default_weight}kg` : ''}
                     </div>
                   </div>
                 </div>
@@ -205,6 +221,40 @@ export default function Home() {
               }}
             >
               View History
+            </button>
+          </div>
+        )}
+      </BottomSheet>
+
+      {/* Delete confirmation sheet */}
+      <BottomSheet
+        open={!!deletingRoutine}
+        onClose={() => setDeletingRoutine(null)}
+      >
+        {deletingRoutine && (
+          <div style={{ padding: '8px 20px 20px' }}>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>{deletingRoutine.emoji || '💪'}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+                Delete "{deletingRoutine.name}"?
+              </div>
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                This will permanently delete the routine. Your workout history will not be affected.
+              </div>
+            </div>
+            <button
+              className="btn-destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+              style={{ marginBottom: 10, opacity: deleting ? 0.5 : 1 }}
+            >
+              {deleting ? 'Deleting…' : 'Delete Routine'}
+            </button>
+            <button
+              className="btn-ghost"
+              onClick={() => setDeletingRoutine(null)}
+            >
+              Cancel
             </button>
           </div>
         )}

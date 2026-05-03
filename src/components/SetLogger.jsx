@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-export default function SetLogger({ setNumber, exerciseType, initialWeight, initialReps, onComplete }) {
+export default function SetLogger({ setNumber, targetSets, exerciseType, initialWeight, initialReps, onComplete }) {
   const isBodyweight = exerciseType === 'bodyweight'
   const isCardio = exerciseType === 'cardio'
 
@@ -44,7 +44,7 @@ export default function SetLogger({ setNumber, exerciseType, initialWeight, init
       padding: 16,
     }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-        Set {setNumber}
+        Set {setNumber}{targetSets ? ` of ${targetSets}` : ''}
       </div>
 
       {isCardio ? (

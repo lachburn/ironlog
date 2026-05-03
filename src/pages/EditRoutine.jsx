@@ -2,10 +2,16 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useRoutines } from '../hooks/useRoutines'
 import ExerciseSearchModal from '../components/ExerciseSearchModal'
-
-const EMOJIS = ['💪', '🏋️', '🔥', '⚡', '🎯', '🦵', '🤸', '🏃', '🚴', '🧗', '🤼', '🥊', '🏊', '⛹️', '🧘', '🦾', '🏅', '💥', '🎽', '🩻']
+import BottomSheet from '../components/BottomSheet'
 
 const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
+
+function getGraphemes(str) {
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    return [...new Intl.Segmenter().segment(str)].map(s => s.segment)
+  }
+  return Array.from(str)
+}
 
 export default function EditRoutine() {
   const { id } = useParams()
@@ -16,8 +22,8 @@ export default function EditRoutine() {
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('💪')
   const [exercises, setExercises] = useState([])
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showExerciseModal, setShowExerciseModal] = useState(false)
+  const [configuringExercise, setConfiguringExercise] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -42,15 +48,50 @@ export default function EditRoutine() {
     }
   }, [id, isNew, routines])
 
+  // Called when user picks an exercise from the search modal
   const handleAddExercise = (ex) => {
-    setExercises(prev => [...prev, {
-      exercise_id: ex.id,
-      name: ex.name,
-      type: ex.type,
-      default_sets: 3,
-      default_reps: 10,
-      default_weight: 0,
-    }])
+    setShowExerciseModal(false)
+    setConfiguringExercise({
+      exercise: { id: ex.id, name: ex.name, type: ex.type },
+      editIndex: null,
+      sets: '3',
+      reps: '10',
+      weight: (ex.type === 'weighted' || ex.type === 'dumbbell') ? '0' : null,
+    })
+  }
+
+  // Called when user taps subtitle on an existing row
+  const handleEditDefaults = (i) => {
+    const ex = exercises[i]
+    setConfiguringExercise({
+      exercise: { id: ex.exercise_id, name: ex.name, type: ex.type },
+      editIndex: i,
+      sets: String(ex.default_sets ?? 3),
+      reps: String(ex.default_reps ?? 10),
+      weight: (ex.type === 'weighted' || ex.type === 'dumbbell')
+        ? String(ex.default_weight ?? 0)
+        : null,
+    })
+  }
+
+  const handleConfigConfirm = () => {
+    const { exercise, editIndex, sets, reps, weight } = configuringExercise
+    const entry = {
+      exercise_id: exercise.id,
+      name: exercise.name,
+      type: exercise.type,
+      default_sets: Math.max(1, parseInt(sets) || 1),
+      default_reps: Math.max(1, parseInt(reps) || 1),
+      default_weight: weight !== null ? parseFloat(weight) || 0 : 0,
+    }
+    if (editIndex === null) {
+      setExercises(prev => [...prev, entry])
+    } else {
+      setExercises(prev => prev.map((e, i) =>
+        i === editIndex ? { ...e, ...entry } : e
+      ))
+    }
+    setConfiguringExercise(null)
   }
 
   const moveUp = (i) => {
@@ -95,6 +136,10 @@ export default function EditRoutine() {
     navigate('/')
   }
 
+  const cfgType = configuringExercise?.exercise?.type
+  const cfgIsCardio = cfgType === 'cardio'
+  const cfgShowWeight = cfgType === 'weighted' || cfgType === 'dumbbell'
+
   return (
     <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
@@ -128,63 +173,40 @@ export default function EditRoutine() {
 
       {/* Scrollable body */}
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '20px 16px 120px' }}>
-        {/* Emoji + Name */}
+        {/* Emoji input + Name */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 20 }}>
-          <button
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            style={{
-              width: 64,
-              height: 56,
-              borderRadius: 12,
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              fontSize: 32,
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          >
-            {emoji}
-          </button>
-          <input
-            type="text"
-            placeholder="Routine name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            style={{ flex: 1 }}
-          />
-        </div>
-
-        {/* Emoji picker */}
-        {showEmojiPicker && (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(5, 1fr)',
-            gap: 8,
-            marginBottom: 20,
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            padding: 12,
-          }}>
-            {EMOJIS.map(e => (
-              <button
-                key={e}
-                onClick={() => { setEmoji(e); setShowEmojiPicker(false) }}
-                style={{
-                  fontSize: 28,
-                  background: emoji === e ? 'var(--accent)' : 'none',
-                  border: 'none',
-                  borderRadius: 10,
-                  padding: 8,
-                  cursor: 'pointer',
-                  minHeight: 48,
-                }}
-              >
-                {e}
-              </button>
-            ))}
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>ICON</div>
+            <input
+              type="text"
+              value={emoji}
+              onChange={e => {
+                const val = e.target.value
+                if (!val) return
+                const segs = getGraphemes(val)
+                if (segs.length > 0) setEmoji(segs[segs.length - 1])
+              }}
+              style={{
+                width: 64,
+                height: 56,
+                borderRadius: 12,
+                fontSize: 30,
+                textAlign: 'center',
+                padding: 0,
+                lineHeight: '56px',
+              }}
+            />
           </div>
-        )}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>NAME</div>
+            <input
+              type="text"
+              placeholder="Routine name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
+          </div>
+        </div>
 
         {/* Exercises */}
         <div style={{ marginBottom: 12 }}>
@@ -210,9 +232,23 @@ export default function EditRoutine() {
                 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ color: 'var(--text-primary)', fontSize: 15, fontWeight: 500 }}>{ex.name}</div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
-                      {TYPE_LABELS[ex.type]} · {ex.default_sets}×{ex.default_reps}
-                    </div>
+                    <button
+                      onClick={() => handleEditDefaults(i)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        color: 'var(--accent)',
+                        fontSize: 12,
+                        fontFamily: 'DM Sans',
+                        textAlign: 'left',
+                        marginTop: 2,
+                      }}
+                    >
+                      {TYPE_LABELS[ex.type]} · {ex.default_sets} sets × {ex.default_reps} reps
+                      {ex.default_weight > 0 ? ` @ ${ex.default_weight}kg` : ''} ✎
+                    </button>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <button
@@ -276,6 +312,78 @@ export default function EditRoutine() {
         onSelect={handleAddExercise}
         excludeIds={exercises.map(e => e.exercise_id)}
       />
+
+      {/* Exercise defaults config sheet */}
+      <BottomSheet
+        open={!!configuringExercise}
+        onClose={() => setConfiguringExercise(null)}
+        title={configuringExercise?.editIndex === null ? 'Set Defaults' : 'Edit Defaults'}
+      >
+        {configuringExercise && (
+          <div style={{ padding: '8px 20px 20px' }}>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 16 }}>
+                {configuringExercise.exercise.name}
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                {TYPE_LABELS[configuringExercise.exercise.type] || configuringExercise.exercise.type}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>
+                  SETS
+                </div>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  value={configuringExercise.sets}
+                  onChange={e => setConfiguringExercise(prev => ({ ...prev, sets: e.target.value }))}
+                  style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
+                />
+              </div>
+
+              {!cfgIsCardio && (
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>
+                    REPS
+                  </div>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    value={configuringExercise.reps}
+                    onChange={e => setConfiguringExercise(prev => ({ ...prev, reps: e.target.value }))}
+                    style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
+                  />
+                </div>
+              )}
+
+              {cfgShowWeight && (
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>
+                    WEIGHT (KG)
+                  </div>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    value={configuringExercise.weight}
+                    onChange={e => setConfiguringExercise(prev => ({ ...prev, weight: e.target.value }))}
+                    style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <button className="btn-primary" onClick={handleConfigConfirm}>
+              {configuringExercise.editIndex === null ? 'Add Exercise' : 'Save Changes'}
+            </button>
+          </div>
+        )}
+      </BottomSheet>
     </div>
   )
 }
