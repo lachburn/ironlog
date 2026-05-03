@@ -9,12 +9,14 @@ export default function LineChart({ data, color = 'var(--accent)' }) {
   const innerH = H - PAD.top - PAD.bottom
 
   const values = data.map(d => d.y)
-  const minY = Math.min(...values)
-  const maxY = Math.max(...values)
-  const rangeY = maxY - minY || 1
+  const mostRecent = values[values.length - 1]
+  const maxY = Math.max(
+    mostRecent > 0 ? mostRecent / 0.75 : 1,
+    Math.max(...values),
+  )
 
   const scaleX = (i) => PAD.left + (i / Math.max(data.length - 1, 1)) * innerW
-  const scaleY = (v) => PAD.top + innerH - ((v - minY) / rangeY) * innerH
+  const scaleY = (v) => PAD.top + innerH - (v / maxY) * innerH
 
   // Build polyline points
   const points = data.map((d, i) => `${scaleX(i)},${scaleY(d.y)}`).join(' ')
@@ -28,8 +30,8 @@ export default function LineChart({ data, color = 'var(--accent)' }) {
     'Z',
   ].join(' ')
 
-  // Y axis labels (3 ticks)
-  const yTicks = [minY, minY + rangeY / 2, maxY]
+  // Y axis labels (3 ticks: 0, midpoint, max)
+  const yTicks = [0, maxY / 2, maxY]
 
   // X axis labels (show first, middle, last if > 2 points)
   const xLabels = data.length <= 1

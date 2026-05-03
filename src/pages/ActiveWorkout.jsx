@@ -25,6 +25,7 @@ export default function ActiveWorkout() {
 
   const [sessionId, setSessionId] = useState(null)
   const [exerciseIndex, setExerciseIndex] = useState(0)
+  const [exerciseQueue, setExerciseQueue] = useState(null)
   const [loggedSets, setLoggedSets] = useState([])  // all sets this session
   const [lastSets, setLastSets] = useState([])
   const [showRest, setShowRest] = useState(false)
@@ -35,7 +36,15 @@ export default function ActiveWorkout() {
   const [startedAt] = useState(Date.now())
   const [initialized, setInitialized] = useState(false)
 
-  const currentExercise = exercises[exerciseIndex]
+  // Initialise queue once exercises are available
+  useEffect(() => {
+    if (exerciseQueue === null && exercises.length > 0) {
+      setExerciseQueue([...exercises])
+    }
+  }, [exercises.length]) // eslint-disable-line
+
+  const queue = exerciseQueue || exercises
+  const currentExercise = queue[exerciseIndex]
   const exerciseType = currentExercise?.exercises?.type || 'weighted'
 
   // Initialise session on mount
@@ -78,20 +87,21 @@ export default function ActiveWorkout() {
     setShowRest(false)
   }, [exerciseIndex, currentExercise]) // eslint-disable-line
 
-  const currentExSets = loggedSets.filter(s => s._exerciseIndex === exerciseIndex)
+  const currentExId = currentExercise?.exercises?.id
+  const currentExSets = loggedSets.filter(s => s._exerciseId === currentExId)
 
   const handleCompleteSet = async (setData) => {
     if (!sessionId) return
     const set = {
       session_id: sessionId,
-      exercise_id: currentExercise.exercises?.id,
+      exercise_id: currentExId,
       exercise_name: currentExercise.exercises?.name,
       exercise_type: exerciseType,
       set_number: setCount,
       ...setData,
     }
     const { data } = await logSet(set)
-    const withMeta = { ...set, ...data, _exerciseIndex: exerciseIndex }
+    const withMeta = { ...set, ...data, _exerciseId: currentExId }
     setLoggedSets(prev => [...prev, withMeta])
     setSetCount(c => c + 1)
 
@@ -109,6 +119,17 @@ export default function ActiveWorkout() {
     setShowRest(false)
   }
 
+  const handleDoLater = () => {
+    setExerciseQueue(prev => {
+      const q = [...(prev || exercises)]
+      const [moved] = q.splice(exerciseIndex, 1)
+      q.push(moved)
+      return q
+    })
+    // exerciseIndex stays the same — the next exercise slides into this slot
+    setShowRest(false)
+  }
+
   const handleFinish = async () => {
     if (!sessionId) return
     setFinishing(true)
@@ -116,7 +137,7 @@ export default function ActiveWorkout() {
     navigate(`/history/${sessionId}`, { replace: true })
   }
 
-  if (!routine || exercises.length === 0) {
+  if (!routine || queue.length === 0) {
     return (
       <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ color: 'var(--text-secondary)' }}>Loading workout…</div>
@@ -124,7 +145,7 @@ export default function ActiveWorkout() {
     )
   }
 
-  const isLastExercise = exerciseIndex >= exercises.length - 1
+  const isLastExercise = exerciseIndex >= queue.length - 1
   const hasLoggedAtLeastOneSet = currentExSets.length > 0
 
   return (
@@ -149,12 +170,12 @@ export default function ActiveWorkout() {
           </button>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>
-              Exercise {exerciseIndex + 1} of {exercises.length} · {formatDuration(Math.floor((Date.now() - startedAt) / 1000))}
+              Exercise {exerciseIndex + 1} of {queue.length} · {formatDuration(Math.floor((Date.now() - startedAt) / 1000))}
             </div>
             <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
               <div style={{
                 height: '100%',
-                width: `${((exerciseIndex + 1) / exercises.length) * 100}%`,
+                width: `${((exerciseIndex + 1) / queue.length) * 100}%`,
                 background: 'var(--accent)',
                 borderRadius: 2,
                 transition: 'width 300ms ease',
@@ -263,30 +284,39 @@ export default function ActiveWorkout() {
         gap: 8,
       }}>
         {isLastExercise ? (
-          <button
-            className="btn-primary"
-            onClick={handleFinish}
-            disabled={finishing || !hasLoggedAtLeastOneSet}
-            style={{ opacity: (finishing || !hasLoggedAtLeastOneSet) ? 0.5 : 1 }}
-          >
-            {finishing ? 'Finishing…' : 'Finish Workout 🏁'}
-          </button>
+          <>
+            <button
+              className="btn-primary"
+              onClick={handleFinish}
+              disabled={finishing || !hasLoggedAtLeastOneSet}
+              style={{ opacity: (finishing || !hasLoggedAtLeastOneSet) ? 0.5 : 1 }}
+            >
+              {finishing ? 'Finishing…' : 'Finish Workout 🏁'}
+            </button>
+            <button className="btn-ghost" onClick={handleFinish}>
+              Finish without logging
+            </button>
+          </>
         ) : (
-          <button
-            className="btn-primary"
-            onClick={goNextExercise}
-            disabled={!hasLoggedAtLeastOneSet}
-            style={{ opacity: hasLoggedAtLeastOneSet ? 1 : 0.5 }}
-          >
-            Next Exercise →
-          </button>
+          <>
+            <button
+              className="btn-primary"
+              onClick={goNextExercise}
+              disabled={!hasLoggedAtLeastOneSet}
+              style={{ opacity: hasLoggedAtLeastOneSet ? 1 : 0.5 }}
+            >
+              Next Exercise →
+            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-ghost" onClick={goNextExercise} style={{ flex: 1 }}>
+                Skip Exercise
+              </button>
+              <button className="btn-ghost" onClick={handleDoLater} style={{ flex: 1 }}>
+                Do Later in Workout
+              </button>
+            </div>
+          </>
         )}
-        <button
-          className="btn-ghost"
-          onClick={isLastExercise ? handleFinish : goNextExercise}
-        >
-          {isLastExercise ? 'Finish without logging' : 'Skip Exercise'}
-        </button>
       </div>
     </div>
   )
