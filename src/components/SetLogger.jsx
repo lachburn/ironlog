@@ -108,7 +108,7 @@ export default function SetLogger({ setNumber, exerciseType, initialWeight, init
         disabled={!canComplete}
         style={{ opacity: canComplete ? 1 : 0.5 }}
       >
-        Complete Set ▶
+        Complete Set
       </button>
     </div>
   )

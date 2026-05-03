@@ -2,14 +2,16 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
+let _cache = null
+
 export function useRoutines() {
   const { user } = useAuth()
-  const [routines, setRoutines] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [routines, setRoutines] = useState(_cache || [])
+  const [loading, setLoading] = useState(_cache === null)
 
   const fetchRoutines = useCallback(async () => {
     if (!user) return
-    setLoading(true)
+    if (_cache === null) setLoading(true)
     const { data } = await supabase
       .from('routines')
       .select(`
@@ -30,6 +32,7 @@ export function useRoutines() {
         )
       }))
       setRoutines(sorted)
+      _cache = sorted
     }
     setLoading(false)
   }, [user])

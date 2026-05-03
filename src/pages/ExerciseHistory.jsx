@@ -10,13 +10,6 @@ const SORTS = [
   { key: 'az',        label: 'A → Z' },
 ]
 
-const TYPE_COLORS = {
-  weighted:   '#C9A84C',
-  dumbbell:   '#E2C06E',
-  bodyweight: '#4CAF50',
-  cardio:     '#2196F3',
-}
-
 function sortExercises(list, sort) {
   return [...list].sort((a, b) => {
     if (sort === 'recent')    return new Date(b.last_done) - new Date(a.last_done)
@@ -38,9 +31,9 @@ function timeAgo(iso) {
 
 export default function ExerciseHistory() {
   const navigate = useNavigate()
-  const { fetchExerciseHistory } = useHistory()
+  const { fetchExerciseHistory, exHistCacheExists } = useHistory()
   const [exercises, setExercises] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!exHistCacheExists)
   const [sort, setSort] = useState('recent')
   const [query, setQuery] = useState('')
 
@@ -140,26 +133,6 @@ export default function ExerciseHistory() {
                 minHeight: 68,
               }}
             >
-              {/* Type colour dot */}
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: (TYPE_COLORS[ex.exercise_type] || 'var(--accent)') + '22',
-                border: `1px solid ${TYPE_COLORS[ex.exercise_type] || 'var(--accent)'}44`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <div style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  background: TYPE_COLORS[ex.exercise_type] || 'var(--accent)',
-                }} />
-              </div>
-
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   color: 'var(--text-primary)',

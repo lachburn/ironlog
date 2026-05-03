@@ -2,21 +2,27 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
+let _sessionsCache = null
+let _exHistCache = null
+
 export function useHistory() {
   const { user } = useAuth()
-  const [sessions, setSessions] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [sessions, setSessions] = useState(_sessionsCache || [])
+  const [loading, setLoading] = useState(_sessionsCache === null)
 
   const fetchSessions = useCallback(async () => {
     if (!user) return
-    setLoading(true)
+    if (_sessionsCache === null) setLoading(true)
     const { data } = await supabase
       .from('workout_sessions')
-      .select('*')
+      .select('*, routines ( emoji )')
       .eq('user_id', user.id)
       .not('completed_at', 'is', null)
       .order('started_at', { ascending: false })
-    if (data) setSessions(data)
+    if (data) {
+      setSessions(data)
+      _sessionsCache = data
+    }
     setLoading(false)
   }, [user])
 
@@ -42,6 +48,7 @@ export function useHistory() {
   // Fetch all exercises the user has ever logged, with aggregate stats
   const fetchExerciseHistory = useCallback(async () => {
     if (!user) return []
+    if (_exHistCache) return _exHistCache
 
     // Get all session IDs for this user
     const { data: sessionRows } = await supabase
@@ -82,7 +89,9 @@ export function useHistory() {
       if (s.completed_at > ex.last_done) ex.last_done = s.completed_at
     }
 
-    return Array.from(map.values())
+    const result = Array.from(map.values())
+    _exHistCache = result
+    return result
   }, [user])
 
   // Fetch all sets for one exercise, grouped by session for charting
@@ -137,5 +146,6 @@ export function useHistory() {
   return {
     sessions, loading, fetchSessions, fetchSession,
     fetchExerciseHistory, fetchExerciseDetail,
+    exHistCacheExists: _exHistCache !== null,
   }
 }

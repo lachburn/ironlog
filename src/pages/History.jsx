@@ -72,7 +72,7 @@ export default function History() {
                 justifyContent: 'center',
                 flexShrink: 0,
               }}>
-                <div style={{ fontSize: 18 }}>💪</div>
+                <div style={{ fontSize: 18 }}>{session.routines?.emoji || '💪'}</div>
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 15 }}>

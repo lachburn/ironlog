@@ -24,8 +24,8 @@ export default function Home() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '56px 20px 16px',
-        paddingTop: 'max(56px, calc(env(safe-area-inset-top) + 16px))',
+        padding: '20px 20px 16px',
+        paddingTop: 'max(20px, calc(env(safe-area-inset-top) + 8px))',
         background: 'var(--bg)',
         flexShrink: 0,
       }}>
