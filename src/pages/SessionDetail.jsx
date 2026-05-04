@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useHistory } from '../hooks/useHistory'
+import BottomSheet from '../components/BottomSheet'
 
 function formatDate(ts) {
   return new Date(ts).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -31,13 +32,26 @@ function groupByExercise(sets) {
   return Array.from(map.values())
 }
 
+function TrashIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+    </svg>
+  )
+}
+
 export default function SessionDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { fetchSession } = useHistory()
+  const { fetchSession, deleteWorkout } = useHistory()
   const [session, setSession] = useState(null)
   const [exercises, setExercises] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showDeleteSheet, setShowDeleteSheet] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     fetchSession(id).then(({ session: s, sets }) => {
@@ -46,6 +60,12 @@ export default function SessionDetail() {
       setLoading(false)
     })
   }, [id]) // eslint-disable-line
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    await deleteWorkout(id)
+    navigate('/history', { replace: true })
+  }
 
   if (loading || !session) {
     return (
@@ -81,13 +101,34 @@ export default function SessionDetail() {
               {formatDate(session.started_at)}
             </div>
           </div>
-          {/* Big MM:SS duration */}
+          {/* Duration */}
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <div className="font-display" style={{ fontSize: 32, color: 'var(--accent)', letterSpacing: 1, lineHeight: 1 }}>
               {duration}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>duration</div>
           </div>
+          {/* Delete button */}
+          <button
+            onClick={() => setShowDeleteSheet(true)}
+            aria-label="Delete workout"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-secondary)',
+              padding: 8,
+              minWidth: 44,
+              minHeight: 44,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 10,
+              opacity: 0.7,
+            }}
+          >
+            <TrashIcon />
+          </button>
         </div>
       </div>
 
@@ -145,6 +186,7 @@ export default function SessionDetail() {
                           <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Reps</th>
                         </>
                       )}
+                      <th style={{ width: 20 }} />
                     </tr>
                   </thead>
                   <tbody>
@@ -170,6 +212,11 @@ export default function SessionDetail() {
                             <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{s.reps}</td>
                           </>
                         )}
+                        <td style={{ textAlign: 'right', padding: '5px 0 5px 8px', fontSize: 13 }}>
+                          {s.is_failure && (
+                            <span style={{ color: '#4CAF50', fontSize: 14 }} title="Failure set">⚡</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -179,6 +226,37 @@ export default function SessionDetail() {
           </div>
         )}
       </div>
+
+      {/* Delete confirmation sheet */}
+      <BottomSheet open={showDeleteSheet} onClose={() => !deleting && setShowDeleteSheet(false)}>
+        <div style={{ padding: '8px 20px 20px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🗑️</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+              Delete this workout?
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <strong>{session.routine_name}</strong> on {formatDate(session.started_at)}.
+              {' '}This cannot be undone.
+            </div>
+          </div>
+          <button
+            className="btn-destructive"
+            onClick={handleDelete}
+            disabled={deleting}
+            style={{ marginBottom: 10, opacity: deleting ? 0.5 : 1 }}
+          >
+            {deleting ? 'Deleting…' : 'Delete Workout'}
+          </button>
+          <button
+            className="btn-ghost"
+            onClick={() => setShowDeleteSheet(false)}
+            disabled={deleting}
+          >
+            Cancel
+          </button>
+        </div>
+      </BottomSheet>
     </div>
   )
 }

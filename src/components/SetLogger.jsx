@@ -14,21 +14,19 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
     setReps(initialReps ?? '')
   }, [initialWeight, initialReps, setNumber, isCardio, isBodyweight])
 
-  const handleComplete = () => {
+  const buildData = (isFailure) => {
     if (isCardio) {
       const [min = 0, sec = 0] = duration.split(':').map(Number)
-      onComplete({
-        weight: null,
-        reps: null,
-        duration_seconds: min * 60 + sec,
-        distance_metres: distance ? parseFloat(distance) : null,
-      })
-    } else if (isBodyweight) {
-      onComplete({ weight: null, reps: parseInt(reps) || 0, duration_seconds: null, distance_metres: null })
-    } else {
-      onComplete({ weight: parseFloat(weight) || 0, reps: parseInt(reps) || 0, duration_seconds: null, distance_metres: null })
+      return { weight: null, reps: null, duration_seconds: min * 60 + sec, distance_metres: distance ? parseFloat(distance) : null, is_failure: isFailure }
     }
+    if (isBodyweight) {
+      return { weight: null, reps: parseInt(reps) || 0, duration_seconds: null, distance_metres: null, is_failure: isFailure }
+    }
+    return { weight: parseFloat(weight) || 0, reps: parseInt(reps) || 0, duration_seconds: null, distance_metres: null, is_failure: isFailure }
   }
+
+  const handleComplete = () => onComplete(buildData(false))
+  const handleFailure = () => onComplete(buildData(true))
 
   const canComplete = isCardio
     ? duration.length > 0
@@ -109,6 +107,33 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
         style={{ opacity: canComplete ? 1 : 0.5 }}
       >
         Complete Set
+      </button>
+
+      <button
+        onClick={handleFailure}
+        disabled={!canComplete}
+        style={{
+          marginTop: 8,
+          width: '100%',
+          background: 'transparent',
+          border: '1px solid #4CAF50',
+          borderRadius: 12,
+          padding: '10px 24px',
+          fontFamily: 'DM Sans',
+          fontSize: 14,
+          fontWeight: 600,
+          color: '#4CAF50',
+          cursor: canComplete ? 'pointer' : 'not-allowed',
+          opacity: canComplete ? 1 : 0.35,
+          minHeight: 42,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          transition: 'opacity 200ms ease',
+        }}
+      >
+        <span style={{ fontSize: 15 }}>⚡</span> Failure
       </button>
     </div>
   )

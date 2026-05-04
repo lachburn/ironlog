@@ -20,8 +20,19 @@ export function useHistory() {
       .not('completed_at', 'is', null)
       .order('started_at', { ascending: false })
     if (data) {
-      setSessions(data)
-      _sessionsCache = data
+      // Detect which sessions have failure sets (graceful — no-op if column missing)
+      let failIds = new Set()
+      if (data.length > 0) {
+        const { data: failSets, error: failErr } = await supabase
+          .from('logged_sets')
+          .select('session_id')
+          .eq('is_failure', true)
+          .in('session_id', data.map(s => s.id))
+        if (!failErr && failSets) failIds = new Set(failSets.map(f => f.session_id))
+      }
+      const enriched = data.map(s => ({ ...s, hasFailure: failIds.has(s.id) }))
+      setSessions(enriched)
+      _sessionsCache = enriched
     }
     setLoading(false)
   }, [user])
@@ -143,9 +154,20 @@ export function useHistory() {
     return { sessions: sessionData, sets }
   }, [user])
 
+  const deleteWorkout = async (sessionId) => {
+    await supabase.from('logged_sets').delete().eq('session_id', sessionId)
+    const { error } = await supabase.from('workout_sessions').delete().eq('id', sessionId)
+    if (!error) {
+      _sessionsCache = null
+      setSessions(prev => prev.filter(s => s.id !== sessionId))
+    }
+    return { error }
+  }
+
   return {
     sessions, loading, fetchSessions, fetchSession,
     fetchExerciseHistory, fetchExerciseDetail,
+    deleteWorkout,
     exHistCacheExists: _exHistCache !== null,
   }
 }

@@ -11,7 +11,7 @@ export default function BottomSheet({ open, onClose, children, title }) {
 
   return (
     <>
-      <div className="backdrop" onClick={onClose} />
+      <div className="backdrop" onClick={onClose} style={{ zIndex: 105 }} />
       <div style={{
         position: 'fixed',
         bottom: 0,
@@ -22,7 +22,7 @@ export default function BottomSheet({ open, onClose, children, title }) {
         borderTopRightRadius: 24,
         border: '1px solid var(--border)',
         borderBottom: 'none',
-        zIndex: 50,
+        zIndex: 110,
         maxHeight: '85dvh',
         display: 'flex',
         flexDirection: 'column',

@@ -14,6 +14,14 @@ function formatDuration(seconds) {
   return `${m}m ${s}s`
 }
 
+function formatSetDisplay(s) {
+  if (s.duration_seconds) {
+    return `${formatDuration(s.duration_seconds)}${s.distance_metres ? ` · ${s.distance_metres}m` : ''}`
+  }
+  if (!s.weight) return `${s.reps} reps`
+  return `${s.weight}kg × ${s.reps}`
+}
+
 export default function ActiveWorkout() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -26,7 +34,7 @@ export default function ActiveWorkout() {
   const [sessionId, setSessionId] = useState(null)
   const [exerciseIndex, setExerciseIndex] = useState(0)
   const [exerciseQueue, setExerciseQueue] = useState(null)
-  const [loggedSets, setLoggedSets] = useState([])  // all sets this session
+  const [loggedSets, setLoggedSets] = useState([])
   const [lastSets, setLastSets] = useState([])
   const [showRest, setShowRest] = useState(false)
   const [nextSetWeight, setNextSetWeight] = useState(null)
@@ -36,7 +44,6 @@ export default function ActiveWorkout() {
   const [startedAt] = useState(Date.now())
   const [initialized, setInitialized] = useState(false)
 
-  // Initialise queue once exercises are available
   useEffect(() => {
     if (exerciseQueue === null && exercises.length > 0) {
       setExerciseQueue([...exercises])
@@ -47,7 +54,6 @@ export default function ActiveWorkout() {
   const currentExercise = queue[exerciseIndex]
   const exerciseType = currentExercise?.exercises?.type || 'weighted'
 
-  // Initialise session on mount
   useEffect(() => {
     if (initialized || !routine) return
     setInitialized(true)
@@ -66,7 +72,6 @@ export default function ActiveWorkout() {
     }
   }, [routine, initialized]) // eslint-disable-line
 
-  // Load last performance when exercise changes
   useEffect(() => {
     if (!currentExercise) return
     const exId = currentExercise.exercises?.id
@@ -89,6 +94,8 @@ export default function ActiveWorkout() {
 
   const currentExId = currentExercise?.exercises?.id
   const currentExSets = loggedSets.filter(s => s._exerciseId === currentExId)
+  const targetSets = currentExercise?.default_sets || null
+  const allSetsComplete = targetSets !== null && currentExSets.length >= targetSets
 
   const handleCompleteSet = async (setData) => {
     if (!sessionId) return
@@ -105,7 +112,6 @@ export default function ActiveWorkout() {
     setLoggedSets(prev => [...prev, withMeta])
     setSetCount(c => c + 1)
 
-    // Pre-fill next set from this set
     if (setData.weight !== undefined) setNextSetWeight(setData.weight)
     if (setData.reps !== undefined) setNextSetReps(setData.reps)
 
@@ -126,7 +132,6 @@ export default function ActiveWorkout() {
       q.push(moved)
       return q
     })
-    // exerciseIndex stays the same — the next exercise slides into this slot
     setShowRest(false)
   }
 
@@ -150,27 +155,28 @@ export default function ActiveWorkout() {
 
   return (
     <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Progress bar header */}
-      <div style={{
-        paddingTop: 'max(48px, calc(env(safe-area-inset-top) + 12px))',
-        padding: '12px 16px 0',
-        paddingTop: 'max(48px, calc(env(safe-area-inset-top) + 12px))',
-        flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+
+      {/* ── Top: progress bar + exercise info (fixed, no scroll) ── */}
+      <div style={{ flexShrink: 0, padding: '0 16px 12px' }}>
+        {/* Progress header row */}
+        <div style={{
+          paddingTop: 'max(44px, calc(env(safe-area-inset-top) + 8px))',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          marginBottom: 10,
+        }}>
           <button
             onClick={() => {
-              if (confirm('Quit this workout? Progress will be lost.')) {
-                navigate('/')
-              }
+              if (confirm('Quit this workout? Progress will be lost.')) navigate('/')
             }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 22, padding: 4, minHeight: 44 }}
           >
             ✕
           </button>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>
-              Exercise {exerciseIndex + 1} of {queue.length} · {formatDuration(Math.floor((Date.now() - startedAt) / 1000))}
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>
+              Exercise {exerciseIndex + 1} of {queue.length}
             </div>
             <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
               <div style={{
@@ -183,12 +189,9 @@ export default function ActiveWorkout() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Body */}
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '16px 16px 120px' }}>
         {/* Exercise name */}
-        <div className="font-display" style={{ fontSize: 42, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1, marginBottom: 6 }}>
+        <div className="font-display" style={{ fontSize: 36, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1, marginBottom: 6 }}>
           {currentExercise.exercises?.name}
         </div>
 
@@ -199,19 +202,19 @@ export default function ActiveWorkout() {
           fontWeight: 600,
           color: TYPE_COLORS[exerciseType] || 'var(--accent)',
           background: (TYPE_COLORS[exerciseType] || 'var(--accent)') + '22',
-          padding: '4px 10px',
+          padding: '3px 10px',
           borderRadius: 8,
           textTransform: 'uppercase',
           letterSpacing: 0.5,
-          marginBottom: 20,
+          marginBottom: 12,
         }}>
           {TYPE_LABELS[exerciseType] || exerciseType}
         </div>
 
         {/* Last performance */}
         {lastSets.length > 0 && (
-          <div className="card" style={{ padding: 14, marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+          <div className="card" style={{ padding: '10px 14px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
               Last Time
             </div>
             <div style={{ color: 'var(--text-primary)', fontSize: 13 }}>
@@ -225,57 +228,71 @@ export default function ActiveWorkout() {
             </div>
           </div>
         )}
+      </div>
 
-        {/* Set logger */}
-        <SetLogger
-          key={`${exerciseIndex}-${setCount}`}
-          setNumber={setCount}
-          targetSets={currentExercise.default_sets || null}
-          exerciseType={exerciseType}
-          initialWeight={nextSetWeight}
-          initialReps={nextSetReps}
-          onComplete={handleCompleteSet}
-        />
+      {/* ── Middle: set logger + rest timer + completed sets (fills remaining space) ── */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '0 16px', gap: 10 }}>
+
+        {/* Set logger or "all sets complete" message */}
+        {allSetsComplete ? (
+          <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ color: 'var(--accent)', fontSize: 18 }}>✓</span>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>All {targetSets} sets complete</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Proceed to the next exercise</div>
+            </div>
+          </div>
+        ) : (
+          <SetLogger
+            key={`${exerciseIndex}-${setCount}`}
+            setNumber={setCount}
+            targetSets={targetSets}
+            exerciseType={exerciseType}
+            initialWeight={nextSetWeight}
+            initialReps={nextSetReps}
+            onComplete={handleCompleteSet}
+          />
+        )}
 
         {/* Rest timer */}
-        {showRest && <RestTimer onDismiss={() => setShowRest(false)} />}
+        {showRest && (
+          <div style={{ flexShrink: 0 }}>
+            <RestTimer onDismiss={() => setShowRest(false)} />
+          </div>
+        )}
 
-        {/* Completed sets this exercise */}
+        {/* Completed sets — scrolls internally */}
         {currentExSets.length > 0 && (
-          <div style={{ marginTop: 20 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
               Completed Sets
             </div>
-            {currentExSets.map((s, i) => (
-              <div key={i} style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '8px 0',
-                borderBottom: '1px solid var(--border)',
-                fontSize: 14,
-                color: 'var(--text-secondary)',
-              }}>
-                <span style={{ color: 'var(--accent)', fontWeight: 600 }}>✓</span>
-                <span>Set {s.set_number}: </span>
-                <span style={{ color: 'var(--text-primary)' }}>
-                  {s.duration_seconds
-                    ? `${formatDuration(s.duration_seconds)}${s.distance_metres ? ` · ${s.distance_metres}m` : ''}`
-                    : s.weight
-                    ? `${s.weight}kg × ${s.reps}`
-                    : `${s.reps} reps`
-                  }
-                </span>
-              </div>
-            ))}
+            <div style={{ maxHeight: 140, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              {currentExSets.map((s, i) => (
+                <div key={i} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 0',
+                  borderBottom: '1px solid var(--border)',
+                  fontSize: 13,
+                  color: 'var(--text-secondary)',
+                }}>
+                  <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>✓</span>
+                  <span>Set {s.set_number}:</span>
+                  <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s)}</span>
+                  {s.is_failure && <span style={{ color: '#4CAF50', fontSize: 14, flexShrink: 0 }}>⚡</span>}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Footer actions */}
+      {/* ── Footer actions (fixed) ── */}
       <div style={{
         padding: '12px 16px',
-        paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))',
+        paddingBottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
         borderTop: '1px solid var(--border)',
         background: 'var(--bg)',
         flexShrink: 0,
@@ -312,7 +329,7 @@ export default function ActiveWorkout() {
                 Skip Exercise
               </button>
               <button className="btn-ghost" onClick={handleDoLater} style={{ flex: 1 }}>
-                Do Later in Workout
+                Do Later
               </button>
             </div>
           </>

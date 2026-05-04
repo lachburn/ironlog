@@ -104,7 +104,7 @@ export default function Home() {
         aria-label="New routine"
         style={{
           position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 76px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 90px)',
           right: 20,
           width: 56,
           height: 56,
