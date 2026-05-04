@@ -152,7 +152,7 @@ export default function History() {
         {deletingSession && (
           <div style={{ padding: '8px 20px 20px' }}>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>{deletingSession.routines?.emoji || '💪'}</div>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🗑️</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
                 Delete this workout?
               </div>

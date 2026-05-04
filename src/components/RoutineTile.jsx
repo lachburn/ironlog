@@ -51,6 +51,9 @@ export default function RoutineTile({ routine, onClick, onLongPress }) {
         width: '100%',
         boxShadow: 'var(--shadow)',
         textAlign: 'center',
+        WebkitTouchCallout: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
       }}
     >
       <div style={{ fontSize: 40, lineHeight: 1 }}>{routine.emoji || '💪'}</div>
