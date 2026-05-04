@@ -61,11 +61,12 @@ export function useHistory() {
     if (!user) return []
     if (_exHistCache) return _exHistCache
 
-    // Get all session IDs for this user
+    // Get all completed session IDs for this user
     const { data: sessionRows } = await supabase
       .from('workout_sessions')
       .select('id')
       .eq('user_id', user.id)
+      .not('completed_at', 'is', null)
 
     if (!sessionRows || sessionRows.length === 0) return []
     const sessionIds = sessionRows.map(s => s.id)
@@ -113,6 +114,7 @@ export function useHistory() {
       .from('workout_sessions')
       .select('id, started_at, routine_name')
       .eq('user_id', user.id)
+      .not('completed_at', 'is', null)
 
     if (!sessionRows || sessionRows.length === 0) return { sessions: [], sets: [] }
     const sessionIds = sessionRows.map(s => s.id)
@@ -159,6 +161,7 @@ export function useHistory() {
     const { error } = await supabase.from('workout_sessions').delete().eq('id', sessionId)
     if (!error) {
       _sessionsCache = null
+      _exHistCache = null
       setSessions(prev => prev.filter(s => s.id !== sessionId))
     }
     return { error }
