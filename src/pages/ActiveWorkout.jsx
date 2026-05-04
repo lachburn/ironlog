@@ -230,8 +230,8 @@ export default function ActiveWorkout() {
         )}
       </div>
 
-      {/* ── Middle: set logger + rest timer + completed sets (fills remaining space) ── */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '0 16px', gap: 10 }}>
+      {/* ── Middle: set logger + rest timer + completed sets (scrollable) ── */}
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column', padding: '0 16px 12px', gap: 10 }}>
 
         {/* Set logger or "all sets complete" message */}
         {allSetsComplete ? (
@@ -267,7 +267,7 @@ export default function ActiveWorkout() {
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
               Completed Sets
             </div>
-            <div style={{ maxHeight: 140, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <div>
               {currentExSets.map((s, i) => (
                 <div key={i} style={{
                   display: 'flex',
@@ -310,9 +310,14 @@ export default function ActiveWorkout() {
             >
               {finishing ? 'Finishing…' : 'Finish Workout 🏁'}
             </button>
-            <button className="btn-ghost" onClick={handleFinish}>
-              Finish without logging
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-ghost" onClick={handleFinish} style={{ flex: 1 }}>
+                Skip & Finish
+              </button>
+              <button className="btn-ghost" onClick={handleDoLater} style={{ flex: 1 }}>
+                Do Later
+              </button>
+            </div>
           </>
         ) : (
           <>

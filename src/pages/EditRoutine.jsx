@@ -26,6 +26,8 @@ export default function EditRoutine() {
   const [configuringExercise, setConfiguringExercise] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showDeleteSheet, setShowDeleteSheet] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!isNew && routines.length > 0) {
@@ -131,7 +133,7 @@ export default function EditRoutine() {
   }
 
   const handleDelete = async () => {
-    if (!confirm('Delete this routine?')) return
+    setDeleting(true)
     await deleteRoutine(id)
     navigate('/')
   }
@@ -163,7 +165,7 @@ export default function EditRoutine() {
         </div>
         {!isNew && (
           <button
-            onClick={handleDelete}
+            onClick={() => setShowDeleteSheet(true)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--destructive)', fontSize: 13, fontFamily: 'DM Sans', padding: '4px 8px', minHeight: 44 }}
           >
             Delete
@@ -312,6 +314,32 @@ export default function EditRoutine() {
         onSelect={handleAddExercise}
         excludeIds={exercises.map(e => e.exercise_id)}
       />
+
+      {/* Delete confirmation sheet */}
+      <BottomSheet open={showDeleteSheet} onClose={() => !deleting && setShowDeleteSheet(false)}>
+        <div style={{ padding: '8px 20px 20px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🗑️</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+              Delete "{name}"?
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              This will permanently delete the routine. Your workout history will not be affected.
+            </div>
+          </div>
+          <button
+            className="btn-destructive"
+            onClick={handleDelete}
+            disabled={deleting}
+            style={{ marginBottom: 10, opacity: deleting ? 0.5 : 1 }}
+          >
+            {deleting ? 'Deleting…' : 'Delete Routine'}
+          </button>
+          <button className="btn-ghost" onClick={() => setShowDeleteSheet(false)} disabled={deleting}>
+            Cancel
+          </button>
+        </div>
+      </BottomSheet>
 
       {/* Exercise defaults config sheet */}
       <BottomSheet
