@@ -82,9 +82,9 @@ export default function Home() {
           </div>
         ) : (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
           }}>
             {routines.map(r => (
               <RoutineTile

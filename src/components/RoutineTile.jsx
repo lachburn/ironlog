@@ -7,17 +7,17 @@ export default function RoutineTile({ routine, onClick, onLongPress }) {
 
   const handleTouchStart = (e) => {
     didLongPress.current = false
-    e.currentTarget.style.transform = 'scale(0.97)'
+    e.currentTarget.style.opacity = '0.75'
     pressTimer.current = setTimeout(() => {
       didLongPress.current = true
-      e.currentTarget.style.transform = 'scale(1)'
+      e.currentTarget.style.opacity = '1'
       onLongPress?.()
     }, 600)
   }
 
   const handleTouchEnd = (e) => {
     clearTimeout(pressTimer.current)
-    e.currentTarget.style.transform = 'scale(1)'
+    e.currentTarget.style.opacity = '1'
   }
 
   const handleTouchMove = () => {
@@ -39,30 +39,31 @@ export default function RoutineTile({ routine, onClick, onLongPress }) {
         background: 'var(--surface)',
         border: '1px solid var(--border)',
         borderRadius: 16,
-        padding: '20px 16px',
+        padding: '16px 18px',
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
+        gap: 14,
         cursor: 'pointer',
-        transition: 'transform 200ms ease, border-color 200ms ease',
-        minHeight: 130,
+        transition: 'opacity 150ms ease',
         width: '100%',
         boxShadow: 'var(--shadow)',
-        textAlign: 'center',
+        textAlign: 'left',
         WebkitTouchCallout: 'none',
         userSelect: 'none',
         WebkitUserSelect: 'none',
       }}
     >
-      <div style={{ fontSize: 40, lineHeight: 1 }}>{routine.emoji || '💪'}</div>
-      <div className="font-display" style={{ fontSize: 20, color: 'var(--text-primary)', letterSpacing: 1 }}>
-        {routine.name}
+      <div style={{ fontSize: 36, lineHeight: 1, flexShrink: 0 }}>{routine.emoji || '💪'}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="font-display" style={{ fontSize: 22, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1.1 }}>
+          {routine.name}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500, marginTop: 4 }}>
+          {exerciseCount} exercise{exerciseCount !== 1 ? 's' : ''}
+        </div>
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
-        {exerciseCount} exercise{exerciseCount !== 1 ? 's' : ''}
-      </div>
+      <div style={{ color: 'var(--text-secondary)', fontSize: 20, flexShrink: 0 }}>›</div>
     </button>
   )
 }
