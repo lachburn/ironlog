@@ -57,7 +57,7 @@ export default function BottomNav() {
       background: 'var(--surface)',
       borderTop: '1px solid var(--border)',
       display: 'flex',
-      paddingBottom: 'env(safe-area-inset-bottom, 4px)',
+      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
     }}>
       {TABS.map(({ path, label, icon: Icon }) => {
         const active = location.pathname === path
