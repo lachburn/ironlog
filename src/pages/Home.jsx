@@ -5,6 +5,7 @@ import RoutineTile from '../components/RoutineTile'
 import BottomSheet from '../components/BottomSheet'
 import ThemeToggle from '../components/ThemeToggle'
 import BottomNav from '../components/BottomNav'
+import IronLogLogo from '../components/IronLogLogo'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -39,9 +40,7 @@ export default function Home() {
         background: 'var(--bg)',
         flexShrink: 0,
       }}>
-        <div className="font-display" style={{ fontSize: 36, color: 'var(--accent)', lineHeight: 1 }}>
-          IRONLOG
-        </div>
+        <IronLogLogo height={42} />
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <ThemeToggle />
           <button
