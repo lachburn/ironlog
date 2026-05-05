@@ -164,7 +164,7 @@ export default function ActiveWorkout() {
       {/* ── Top: progress bar + exercise info ── */}
       <div style={{ flexShrink: 0, padding: '0 16px 12px' }}>
         <div style={{
-          paddingTop: 'max(44px, calc(env(safe-area-inset-top) + 8px))',
+          paddingTop: 'calc(env(safe-area-inset-top) + 4px)',
           display: 'flex',
           alignItems: 'center',
           gap: 12,
@@ -213,22 +213,6 @@ export default function ActiveWorkout() {
           {TYPE_LABELS[exerciseType] || exerciseType}
         </div>
 
-        {lastSets.length > 0 && (
-          <div className="card" style={{ padding: '10px 14px' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-              Last Time
-            </div>
-            <div style={{ color: 'var(--text-primary)', fontSize: 13 }}>
-              {lastSets.map(s => {
-                if (s.duration_seconds) {
-                  return `${formatDuration(s.duration_seconds)}${s.distance_metres ? ` · ${s.distance_metres}m` : ''}`
-                }
-                if (!s.weight) return `${s.reps} reps`
-                return `${s.weight}kg × ${s.reps}`
-              }).join('   ')}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── Middle: set logger + completed sets (scrollable) ── */}
