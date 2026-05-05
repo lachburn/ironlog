@@ -63,7 +63,19 @@ export default function RoutineTile({ routine, onClick, onLongPress }) {
           {exerciseCount} exercise{exerciseCount !== 1 ? 's' : ''}
         </div>
       </div>
-      <div style={{ color: 'var(--text-secondary)', fontSize: 20, flexShrink: 0 }}>›</div>
+      <div style={{
+        background: 'var(--accent)',
+        color: '#000',
+        fontSize: 11,
+        fontWeight: 700,
+        fontFamily: 'DM Sans',
+        padding: '4px 12px',
+        borderRadius: 999,
+        flexShrink: 0,
+        letterSpacing: 0.3,
+      }}>
+        ▶ Start
+      </div>
     </button>
   )
 }
