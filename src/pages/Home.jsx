@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SlidersHorizontal } from 'lucide-react'
 import { useRoutines } from '../hooks/useRoutines'
@@ -63,6 +63,7 @@ export default function Home() {
   const [deletingRoutine, setDeletingRoutine] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [lastSets, setLastSets] = useState(null)
+  const [showNewSheet, setShowNewSheet] = useState(false)
 
   // Fetch sets for the most recent session to compute volume
   useEffect(() => {
@@ -228,11 +229,11 @@ export default function Home() {
 
       {/* FAB */}
       <button
-        onClick={() => navigate('/routines/new')}
-        aria-label="New routine"
+        onClick={() => setShowNewSheet(true)}
+        aria-label="New workout"
         style={{
           position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 90px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 100px)',
           right: 20,
           width: 56,
           height: 56,
@@ -255,6 +256,31 @@ export default function Home() {
       >
         +
       </button>
+
+      {/* New workout sheet */}
+      <BottomSheet open={showNewSheet} onClose={() => setShowNewSheet(false)}>
+        <div style={{ padding: '8px 20px 20px' }}>
+          <div className="font-display" style={{ fontSize: 22, color: 'var(--text-primary)', letterSpacing: 1, marginBottom: 20 }}>
+            START A WORKOUT
+          </div>
+          <button
+            className="btn-primary"
+            onClick={() => { setShowNewSheet(false); navigate('/routines/new') }}
+            style={{ marginBottom: 12 }}
+          >
+            Create New Routine
+          </button>
+          <button
+            className="btn-ghost"
+            onClick={() => { setShowNewSheet(false); navigate('/workout/freestyle') }}
+          >
+            Once-Off Workout
+          </button>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', marginTop: 10, lineHeight: 1.5 }}>
+            Once-off workouts let you pick exercises on the fly.<br />You can save the session as a routine afterwards.
+          </div>
+        </div>
+      </BottomSheet>
 
       {/* Routine action sheet */}
       <BottomSheet open={!!selectedRoutine} onClose={() => setSelectedRoutine(null)}>

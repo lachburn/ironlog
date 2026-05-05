@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useRoutines } from '../hooks/useRoutines'
 import { useWorkout } from '../hooks/useWorkout'
 import SetLogger from '../components/SetLogger'
+import BottomSheet from '../components/BottomSheet'
 
 const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
 const TYPE_COLORS = { weighted: '#C9A84C', dumbbell: '#E2C06E', bodyweight: '#4CAF50', cardio: '#2196F3' }
@@ -25,7 +26,7 @@ export default function ActiveWorkout() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { routines } = useRoutines()
-  const { startSession, finishSession, logSet, getLastSets, saveProgress, getProgress } = useWorkout()
+  const { startSession, finishSession, cancelSession, logSet, getLastSets, saveProgress, getProgress } = useWorkout()
 
   const routine = routines.find(r => r.id === id)
   const exercises = routine?.routine_exercises || []
@@ -41,6 +42,7 @@ export default function ActiveWorkout() {
   const [bonusSets, setBonusSets] = useState(0)
   const [finishing, setFinishing] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const [showQuit, setShowQuit] = useState(false)
 
   useEffect(() => {
     if (exerciseQueue === null && exercises.length > 0) {
@@ -171,9 +173,7 @@ export default function ActiveWorkout() {
           marginBottom: 10,
         }}>
           <button
-            onClick={() => {
-              if (confirm('Quit this workout? Progress will be lost.')) navigate('/')
-            }}
+            onClick={() => setShowQuit(true)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 22, padding: 4, minHeight: 44 }}
           >
             ✕
@@ -273,6 +273,31 @@ export default function ActiveWorkout() {
         )}
       </div>
 
+      {/* ── Quit confirmation ── */}
+      <BottomSheet open={showQuit} onClose={() => setShowQuit(false)}>
+        <div style={{ padding: '8px 20px 20px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🛑</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+              Quit workout?
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Your progress will be lost.
+            </div>
+          </div>
+          <button
+            className="btn-destructive"
+            onClick={async () => { await cancelSession(sessionId); navigate('/') }}
+            style={{ marginBottom: 10 }}
+          >
+            Quit Workout
+          </button>
+          <button className="btn-ghost" onClick={() => setShowQuit(false)}>
+            Keep Going
+          </button>
+        </div>
+      </BottomSheet>
+
       {/* ── Footer actions ── */}
       <div style={{
         padding: '12px 16px',
@@ -292,7 +317,7 @@ export default function ActiveWorkout() {
               disabled={finishing || !hasLoggedAtLeastOneSet}
               style={{ opacity: (finishing || !hasLoggedAtLeastOneSet) ? 0.5 : 1 }}
             >
-              {finishing ? 'Finishing…' : 'Finish Workout 🏁'}
+              {finishing ? 'Finishing…' : 'Finish Workout'}
             </button>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn-ghost" onClick={handleFinish} style={{ flex: 1 }}>

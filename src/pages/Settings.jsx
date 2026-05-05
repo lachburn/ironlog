@@ -132,7 +132,7 @@ export default function Settings() {
         <div style={{ textAlign: 'center', paddingTop: 32, color: 'var(--text-secondary)', fontSize: 12 }}>
           <div className="font-display" style={{ fontSize: 20, color: 'var(--accent)', marginBottom: 4 }}>IRONLOG</div>
           Track every rep. Own every session.
-          <div style={{ marginTop: 8, fontSize: 11, opacity: 0.6 }}>v0.1.0</div>
+          <div style={{ marginTop: 8, fontSize: 11, opacity: 0.6 }}>v0.2.1</div>
         </div>
       </div>
     </div>

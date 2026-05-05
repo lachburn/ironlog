@@ -29,11 +29,17 @@ export function useWorkout() {
     return { session: data, error }
   }
 
-  const finishSession = async (sessionId) => {
-    await supabase
-      .from('workout_sessions')
-      .update({ completed_at: new Date().toISOString() })
-      .eq('id', sessionId)
+  const finishSession = async (sessionId, routineName) => {
+    const updates = { completed_at: new Date().toISOString() }
+    if (routineName) updates.routine_name = routineName
+    await supabase.from('workout_sessions').update(updates).eq('id', sessionId)
+    clearProgress()
+  }
+
+  const cancelSession = async (sessionId) => {
+    if (!sessionId) return
+    await supabase.from('logged_sets').delete().eq('session_id', sessionId)
+    await supabase.from('workout_sessions').delete().eq('id', sessionId)
     clearProgress()
   }
 
@@ -67,5 +73,5 @@ export function useWorkout() {
     return sets || []
   }
 
-  return { startSession, finishSession, logSet, getLastSets, saveProgress, clearProgress, getProgress }
+  return { startSession, finishSession, cancelSession, logSet, getLastSets, saveProgress, clearProgress, getProgress }
 }

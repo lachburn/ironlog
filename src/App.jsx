@@ -5,6 +5,7 @@ import Auth from './pages/Auth'
 import Home from './pages/Home'
 import EditRoutine from './pages/EditRoutine'
 import ActiveWorkout from './pages/ActiveWorkout'
+import FreestyleWorkout from './pages/FreestyleWorkout'
 import History from './pages/History'
 import SessionDetail from './pages/SessionDetail'
 import ExerciseHistory from './pages/ExerciseHistory'
@@ -30,6 +31,7 @@ function AppRoutes() {
       <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
       <Route path="/routines/new" element={<ProtectedRoute><EditRoutine /></ProtectedRoute>} />
       <Route path="/routines/:id/edit" element={<ProtectedRoute><EditRoutine /></ProtectedRoute>} />
+      <Route path="/workout/freestyle" element={<ProtectedRoute><FreestyleWorkout /></ProtectedRoute>} />
       <Route path="/workout/:id" element={<ProtectedRoute><ActiveWorkout /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
       <Route path="/history/:id" element={<ProtectedRoute><SessionDetail /></ProtectedRoute>} />
