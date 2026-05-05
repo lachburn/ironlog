@@ -166,9 +166,14 @@ export default function EditRoutine() {
         {!isNew && (
           <button
             onClick={() => setShowDeleteSheet(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--destructive)', fontSize: 13, fontFamily: 'DM Sans', padding: '4px 8px', minHeight: 44 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--destructive)', padding: '4px 8px', minHeight: 44, display: 'flex', alignItems: 'center' }}
           >
-            Delete
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
           </button>
         )}
       </div>

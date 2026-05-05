@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useRoutines } from '../hooks/useRoutines'
 import { useWorkout } from '../hooks/useWorkout'
 import SetLogger from '../components/SetLogger'
-import RestTimer from '../components/RestTimer'
 
 const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
 const TYPE_COLORS = { weighted: '#C9A84C', dumbbell: '#E2C06E', bodyweight: '#4CAF50', cardio: '#2196F3' }
@@ -36,12 +35,11 @@ export default function ActiveWorkout() {
   const [exerciseQueue, setExerciseQueue] = useState(null)
   const [loggedSets, setLoggedSets] = useState([])
   const [lastSets, setLastSets] = useState([])
-  const [showRest, setShowRest] = useState(false)
   const [nextSetWeight, setNextSetWeight] = useState(null)
   const [nextSetReps, setNextSetReps] = useState(null)
   const [setCount, setSetCount] = useState(1)
+  const [bonusSets, setBonusSets] = useState(0)
   const [finishing, setFinishing] = useState(false)
-  const [startedAt] = useState(Date.now())
   const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
@@ -80,22 +78,23 @@ export default function ActiveWorkout() {
     getLastSets(exId).then(sets => {
       setLastSets(sets)
       if (sets.length > 0) {
-        const last = sets[sets.length - 1]
-        setNextSetWeight(last.weight)
-        setNextSetReps(last.reps)
+        // Prefill set 1 from last session's set 1
+        setNextSetWeight(sets[0].weight)
+        setNextSetReps(sets[0].reps)
       } else {
         setNextSetWeight(currentExercise.default_weight || null)
         setNextSetReps(currentExercise.default_reps || null)
       }
     })
     setSetCount(1)
-    setShowRest(false)
+    setBonusSets(0)
   }, [exerciseIndex, currentExercise]) // eslint-disable-line
 
   const currentExId = currentExercise?.exercises?.id
   const currentExSets = loggedSets.filter(s => s._exerciseId === currentExId)
   const targetSets = currentExercise?.default_sets || null
-  const allSetsComplete = targetSets !== null && currentExSets.length >= targetSets
+  const effectiveTarget = (targetSets || 0) + bonusSets
+  const allSetsComplete = targetSets !== null && currentExSets.length >= effectiveTarget
 
   const handleCompleteSet = async (setData) => {
     if (!sessionId) return
@@ -110,19 +109,25 @@ export default function ActiveWorkout() {
     const { data } = await logSet(set)
     const withMeta = { ...set, ...data, _exerciseId: currentExId }
     setLoggedSets(prev => [...prev, withMeta])
+
+    // Prefill next set from last session's matching set number, else carry forward current values
+    const nextLastSet = lastSets[setCount] // setCount is 1-based; index for next set = setCount
+    if (nextLastSet) {
+      setNextSetWeight(nextLastSet.weight ?? setData.weight)
+      setNextSetReps(nextLastSet.reps ?? setData.reps)
+    } else {
+      if (setData.weight !== undefined) setNextSetWeight(setData.weight)
+      if (setData.reps !== undefined) setNextSetReps(setData.reps)
+    }
+
     setSetCount(c => c + 1)
-
-    if (setData.weight !== undefined) setNextSetWeight(setData.weight)
-    if (setData.reps !== undefined) setNextSetReps(setData.reps)
-
-    setShowRest(true)
   }
 
   const goNextExercise = () => {
     const nextIdx = exerciseIndex + 1
     setExerciseIndex(nextIdx)
     saveProgress(sessionId, nextIdx)
-    setShowRest(false)
+    setBonusSets(0)
   }
 
   const handleDoLater = () => {
@@ -132,7 +137,7 @@ export default function ActiveWorkout() {
       q.push(moved)
       return q
     })
-    setShowRest(false)
+    setBonusSets(0)
   }
 
   const handleFinish = async () => {
@@ -156,9 +161,8 @@ export default function ActiveWorkout() {
   return (
     <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* ── Top: progress bar + exercise info (fixed, no scroll) ── */}
+      {/* ── Top: progress bar + exercise info ── */}
       <div style={{ flexShrink: 0, padding: '0 16px 12px' }}>
-        {/* Progress header row */}
         <div style={{
           paddingTop: 'max(44px, calc(env(safe-area-inset-top) + 8px))',
           display: 'flex',
@@ -190,12 +194,10 @@ export default function ActiveWorkout() {
           </div>
         </div>
 
-        {/* Exercise name */}
         <div className="font-display" style={{ fontSize: 36, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1, marginBottom: 6 }}>
           {currentExercise.exercises?.name}
         </div>
 
-        {/* Type badge */}
         <div style={{
           display: 'inline-block',
           fontSize: 11,
@@ -211,7 +213,6 @@ export default function ActiveWorkout() {
           {TYPE_LABELS[exerciseType] || exerciseType}
         </div>
 
-        {/* Last performance */}
         {lastSets.length > 0 && (
           <div className="card" style={{ padding: '10px 14px' }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
@@ -230,23 +231,30 @@ export default function ActiveWorkout() {
         )}
       </div>
 
-      {/* ── Middle: set logger + rest timer + completed sets (scrollable) ── */}
+      {/* ── Middle: set logger + completed sets (scrollable) ── */}
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column', padding: '0 16px 12px', gap: 10 }}>
 
-        {/* Set logger or "all sets complete" message */}
         {allSetsComplete ? (
-          <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ color: 'var(--accent)', fontSize: 18 }}>✓</span>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>All {targetSets} sets complete</div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Proceed to the next exercise</div>
+          <>
+            <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: 'var(--accent)', fontSize: 18 }}>✓</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>All {effectiveTarget} sets complete</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Proceed to the next exercise</div>
+              </div>
             </div>
-          </div>
+            <button
+              className="btn-ghost"
+              onClick={() => setBonusSets(b => b + 1)}
+            >
+              + Add Set
+            </button>
+          </>
         ) : (
           <SetLogger
             key={`${exerciseIndex}-${setCount}`}
             setNumber={setCount}
-            targetSets={targetSets}
+            targetSets={effectiveTarget}
             exerciseType={exerciseType}
             initialWeight={nextSetWeight}
             initialReps={nextSetReps}
@@ -254,14 +262,6 @@ export default function ActiveWorkout() {
           />
         )}
 
-        {/* Rest timer */}
-        {showRest && (
-          <div style={{ flexShrink: 0 }}>
-            <RestTimer onDismiss={() => setShowRest(false)} />
-          </div>
-        )}
-
-        {/* Completed sets — scrolls internally */}
         {currentExSets.length > 0 && (
           <div style={{ flexShrink: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
@@ -289,7 +289,7 @@ export default function ActiveWorkout() {
         )}
       </div>
 
-      {/* ── Footer actions (fixed) ── */}
+      {/* ── Footer actions ── */}
       <div style={{
         padding: '12px 16px',
         paddingBottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
