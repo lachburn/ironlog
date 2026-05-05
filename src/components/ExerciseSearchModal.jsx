@@ -18,6 +18,7 @@ export default function ExerciseSearchModal({ open, onClose, onSelect, excludeId
     if (!open) return
     setQuery('')
     setCreating(false)
+    setNewName('')
     fetchExercises('')
   }, [open])
 
@@ -79,22 +80,26 @@ export default function ExerciseSearchModal({ open, onClose, onSelect, excludeId
         </div>
 
         <div style={{ padding: '0 16px 12px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 12 }}>Add Exercise</div>
-          <input
-            type="text"
-            placeholder="Search exercises…"
-            value={query}
-            onChange={e => handleSearch(e.target.value)}
-            autoFocus
-            style={{ marginBottom: 0 }}
-          />
+          <div style={{ fontWeight: 600, fontSize: 18, marginBottom: creating ? 0 : 12 }}>
+            {creating ? 'New Exercise' : 'Add Exercise'}
+          </div>
+          {!creating && (
+            <input
+              type="text"
+              placeholder="Search exercises…"
+              value={query}
+              onChange={e => handleSearch(e.target.value)}
+              autoFocus
+              style={{ marginBottom: 0 }}
+            />
+          )}
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {!creating ? (
             <>
               <button
-                onClick={() => setCreating(true)}
+                onClick={() => { setCreating(true); setNewName('') }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -158,13 +163,12 @@ export default function ExerciseSearchModal({ open, onClose, onSelect, excludeId
             </>
           ) : (
             <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--text-primary)' }}>New Exercise</div>
               <input
                 type="text"
                 placeholder="Exercise name"
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                defaultValue={query}
+                autoFocus
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {TYPES.map(t => (

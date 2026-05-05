@@ -158,13 +158,15 @@ const SEED_EXERCISES = [
 async function seedExercises(userId) {
   const { data: existing } = await supabase
     .from('exercises')
-    .select('id')
+    .select('name')
     .eq('user_id', userId)
-    .limit(1)
 
-  if (existing && existing.length > 0) return
+  const existingNames = new Set((existing || []).map(e => e.name))
+  const toInsert = SEED_EXERCISES.filter(e => !existingNames.has(e.name))
 
-  const rows = SEED_EXERCISES.map(e => ({
+  if (toInsert.length === 0) return
+
+  const rows = toInsert.map(e => ({
     user_id: userId,
     name: e.name,
     type: e.type,

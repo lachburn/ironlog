@@ -1,5 +1,8 @@
 import { useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import IronLogLogo from '../components/IronLogLogo'
+
+const DEV_EMAIL = 'lach.burn@gmail.com'
 
 export default function Auth() {
   const { sendOtp, verifyOtp } = useAuth()
@@ -62,6 +65,20 @@ export default function Auth() {
     }
   }
 
+  const handleDevLogin = async () => {
+    setError('')
+    setLoading(true)
+    const { error: err } = await sendOtp(DEV_EMAIL)
+    setLoading(false)
+    if (err) {
+      setError(err.message)
+    } else {
+      setEmail(DEV_EMAIL)
+      setStep('pin')
+      setTimeout(() => inputRefs.current[0]?.focus(), 100)
+    }
+  }
+
   const handlePinPaste = (e) => {
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
     if (pasted) {
@@ -85,6 +102,9 @@ export default function Auth() {
     }}>
       {/* Logo */}
       <div style={{ marginBottom: 48, textAlign: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <IronLogLogo height={96} />
+        </div>
         <div className="font-display" style={{ fontSize: 64, color: 'var(--accent)', lineHeight: 1 }}>
           IRONLOG
         </div>
@@ -124,6 +144,26 @@ export default function Auth() {
 
             <button className="btn-primary" type="submit" disabled={loading || !email}>
               {loading ? 'Sending…' : 'Send Code →'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDevLogin}
+              disabled={loading}
+              style={{
+                background: 'none',
+                border: '1px dashed var(--border)',
+                borderRadius: 10,
+                color: 'var(--text-secondary)',
+                fontFamily: 'DM Sans',
+                fontSize: 12,
+                cursor: 'pointer',
+                padding: '8px 12px',
+                textAlign: 'center',
+                opacity: 0.6,
+              }}
+            >
+              🛠 Dev login ({DEV_EMAIL})
             </button>
           </form>
         ) : (
