@@ -74,7 +74,7 @@ export default function RoutineTile({ routine, onClick, onLongPress }) {
         flexShrink: 0,
         letterSpacing: 0.3,
       }}>
-        ▶ Start
+        Start
       </div>
     </button>
   )
