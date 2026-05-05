@@ -2,8 +2,6 @@ import { useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import IronLogLogo from '../components/IronLogLogo'
 
-const DEV_EMAIL = 'lach.burn@gmail.com'
-
 export default function Auth() {
   const { sendOtp, verifyOtp } = useAuth()
   const [email, setEmail] = useState('')
@@ -62,20 +60,6 @@ export default function Auth() {
   const handlePinKeyDown = (i, e) => {
     if (e.key === 'Backspace' && !pin[i] && i > 0) {
       inputRefs.current[i - 1]?.focus()
-    }
-  }
-
-  const handleDevLogin = async () => {
-    setError('')
-    setLoading(true)
-    const { error: err } = await sendOtp(DEV_EMAIL)
-    setLoading(false)
-    if (err) {
-      setError(err.message)
-    } else {
-      setEmail(DEV_EMAIL)
-      setStep('pin')
-      setTimeout(() => inputRefs.current[0]?.focus(), 100)
     }
   }
 
@@ -144,26 +128,6 @@ export default function Auth() {
 
             <button className="btn-primary" type="submit" disabled={loading || !email}>
               {loading ? 'Sending…' : 'Send Code →'}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDevLogin}
-              disabled={loading}
-              style={{
-                background: 'none',
-                border: '1px dashed var(--border)',
-                borderRadius: 10,
-                color: 'var(--text-secondary)',
-                fontFamily: 'DM Sans',
-                fontSize: 12,
-                cursor: 'pointer',
-                padding: '8px 12px',
-                textAlign: 'center',
-                opacity: 0.6,
-              }}
-            >
-              🛠 Dev login ({DEV_EMAIL})
             </button>
           </form>
         ) : (
