@@ -69,9 +69,12 @@ export default function Home() {
   }
 
   const lastSession = sessions[0] ?? null
-  const durationMins = lastSession
-    ? Math.round((new Date(lastSession.completed_at) - new Date(lastSession.started_at)) / 60000)
+  const durationSecs = lastSession
+    ? Math.floor((new Date(lastSession.completed_at) - new Date(lastSession.started_at)) / 1000)
     : 0
+  const durationFormatted = lastSession
+    ? `${String(Math.floor(durationSecs / 60)).padStart(2, '0')}:${String(durationSecs % 60).padStart(2, '0')}`
+    : '00:00'
 
   const weekCount = workoutsThisWeek(sessions)
   const streak = calcStreak(sessions)
@@ -103,6 +106,7 @@ export default function Home() {
 
       {/* ── Pinned: combined last session + stats card ── */}
       {lastSession && (
+        <button onClick={() => navigate(`/history/${lastSession.id}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: '100%', textAlign: 'left' }}>
         <div style={{ padding: '0 16px 12px', flexShrink: 0 }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow)' }}>
 
@@ -121,7 +125,7 @@ export default function Home() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div className="font-display" style={{ fontSize: 30, color: 'var(--text-primary)', lineHeight: 1 }}>
-                  {durationMins}m
+                  {durationFormatted}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>duration</div>
               </div>
@@ -149,6 +153,7 @@ export default function Home() {
 
           </div>
         </div>
+        </button>
       )}
 
       {/* ── Scrollable: routines ── */}
@@ -310,7 +315,6 @@ export default function Home() {
         {deletingRoutine && (
           <div style={{ padding: '8px 20px 20px' }}>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🗑️</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
                 Delete "{deletingRoutine.name}"?
               </div>

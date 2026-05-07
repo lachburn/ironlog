@@ -129,11 +129,10 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 6,
           transition: 'opacity 200ms ease',
         }}
       >
-        <span style={{ fontSize: 15 }}>⚡</span> Failure
+        Failure
       </button>
     </div>
   )

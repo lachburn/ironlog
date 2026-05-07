@@ -214,7 +214,9 @@ export default function SessionDetail() {
                         )}
                         <td style={{ textAlign: 'right', padding: '5px 0 5px 8px', fontSize: 13 }}>
                           {s.is_failure && (
-                            <span style={{ color: '#4CAF50', fontSize: 14 }} title="Failure set">⚡</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3 }}>
+                              FAIL
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -231,7 +233,6 @@ export default function SessionDetail() {
       <BottomSheet open={showDeleteSheet} onClose={() => !deleting && setShowDeleteSheet(false)}>
         <div style={{ padding: '8px 20px 20px' }}>
           <div style={{ textAlign: 'center', marginBottom: 20 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🗑️</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
               Delete this workout?
             </div>

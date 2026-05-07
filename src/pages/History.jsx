@@ -125,7 +125,9 @@ export default function History() {
                       {formatDuration(session.started_at, session.completed_at)}
                     </div>
                     {session.hasFailure && (
-                      <span style={{ color: '#4CAF50', fontSize: 13, lineHeight: 1 }}>⚡</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 5px', borderRadius: 4, letterSpacing: 0.3 }}>
+                        FAIL
+                      </span>
                     )}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>duration</div>
@@ -164,7 +166,6 @@ export default function History() {
         {deletingSession && (
           <div style={{ padding: '8px 20px 20px' }}>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🗑️</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
                 Delete this workout?
               </div>

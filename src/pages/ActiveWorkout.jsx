@@ -489,7 +489,11 @@ export default function ActiveWorkout() {
                     <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>✓</span>
                     <span>Set {s.set_number}:</span>
                     <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s)}</span>
-                    {s.is_failure && <span style={{ color: '#4CAF50', fontSize: 14, flexShrink: 0 }}>⚡</span>}
+                    {s.is_failure && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3, flexShrink: 0 }}>
+                      FAIL
+                    </span>
+                  )}
                   </div>
                 ))}
               </div>
@@ -515,7 +519,11 @@ export default function ActiveWorkout() {
                     <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>✓</span>
                     <span>Set {s.set_number}:</span>
                     <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s)}</span>
-                    {s.is_failure && <span style={{ color: '#4CAF50', fontSize: 14, flexShrink: 0 }}>⚡</span>}
+                    {s.is_failure && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3, flexShrink: 0 }}>
+                      FAIL
+                    </span>
+                  )}
                   </div>
                 ))}
               </div>
@@ -712,7 +720,11 @@ export default function ActiveWorkout() {
                   <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>✓</span>
                   <span>Set {s.set_number}:</span>
                   <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s)}</span>
-                  {s.is_failure && <span style={{ color: '#4CAF50', fontSize: 14, flexShrink: 0 }}>⚡</span>}
+                  {s.is_failure && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3, flexShrink: 0 }}>
+                      FAIL
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -903,7 +915,7 @@ export default function ActiveWorkout() {
                 transition: 'background 150ms ease',
               }}
             >
-              ⚡ Superset
+              Superset
             </button>
           </div>
         )}
