@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { SlidersHorizontal } from 'lucide-react'
 import { useHistory } from '../hooks/useHistory'
 import BottomNav from '../components/BottomNav'
+import IronLogLogo from '../components/IronLogLogo'
 
 const SORTS = [
   { key: 'recent',    label: 'Most Recent' },
@@ -54,48 +56,61 @@ export default function ExerciseHistory() {
   return (
     <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{
-        padding: '56px 16px 12px',
-        paddingTop: 'max(56px, calc(env(safe-area-inset-top) + 16px))',
-        flexShrink: 0,
-      }}>
-        <div className="font-display" style={{ fontSize: 32, color: 'var(--text-primary)', letterSpacing: 1, marginBottom: 12 }}>
-          EXERCISES
+      <div style={{ flexShrink: 0 }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px 12px',
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 10px)',
+          background: 'var(--bg)',
+        }}>
+          <IronLogLogo height={30} />
+          <div className="font-display" style={{ flex: 1, textAlign: 'center', fontSize: 22, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1 }}>
+            EXERCISES
+          </div>
+          <button
+            onClick={() => navigate('/settings')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, color: 'var(--accent)' }}
+          >
+            <SlidersHorizontal size={20} />
+          </button>
         </div>
 
-        {/* Search */}
-        <input
-          type="text"
-          placeholder="Search exercises…"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          style={{ marginBottom: 12 }}
-        />
+        <div style={{ padding: '0 16px 12px' }}>
+          {/* Search */}
+          <input
+            type="text"
+            placeholder="Search exercises…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            style={{ marginBottom: 12 }}
+          />
 
-        {/* Sort pills */}
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
-          {SORTS.map(s => (
-            <button
-              key={s.key}
-              onClick={() => setSort(s.key)}
-              style={{
-                flexShrink: 0,
-                padding: '6px 14px',
-                borderRadius: 20,
-                border: `1px solid ${sort === s.key ? 'var(--accent)' : 'var(--border)'}`,
-                background: sort === s.key ? 'var(--accent)' : 'transparent',
-                color: sort === s.key ? '#000' : 'var(--text-secondary)',
-                fontFamily: 'DM Sans',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 200ms ease',
-                minHeight: 34,
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
+          {/* Sort pills */}
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
+            {SORTS.map(s => (
+              <button
+                key={s.key}
+                onClick={() => setSort(s.key)}
+                style={{
+                  flexShrink: 0,
+                  padding: '6px 14px',
+                  borderRadius: 20,
+                  border: `1px solid ${sort === s.key ? 'var(--accent)' : 'var(--border)'}`,
+                  background: sort === s.key ? 'var(--accent)' : 'transparent',
+                  color: sort === s.key ? '#000' : 'var(--text-secondary)',
+                  fontFamily: 'DM Sans',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 200ms ease',
+                  minHeight: 34,
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

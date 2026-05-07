@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { SlidersHorizontal } from 'lucide-react'
 import { useHistory } from '../hooks/useHistory'
 import BottomSheet from '../components/BottomSheet'
 import BottomNav from '../components/BottomNav'
+import IronLogLogo from '../components/IronLogLogo'
 
 function formatDate(ts) {
   return new Date(ts).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -45,14 +47,24 @@ export default function History() {
     <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <div style={{
-        padding: '56px 16px 16px',
-        paddingTop: 'max(56px, calc(env(safe-area-inset-top) + 16px))',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 16px 12px',
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 10px)',
         borderBottom: '1px solid var(--border)',
         flexShrink: 0,
+        background: 'var(--bg)',
       }}>
-        <div className="font-display" style={{ fontSize: 32, color: 'var(--text-primary)', letterSpacing: 1 }}>
+        <IronLogLogo height={30} />
+        <div className="font-display" style={{ flex: 1, textAlign: 'center', fontSize: 22, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1 }}>
           WORKOUTS
         </div>
+        <button
+          onClick={() => navigate('/settings')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, color: 'var(--accent)' }}
+        >
+          <SlidersHorizontal size={20} />
+        </button>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '8px 16px 100px' }}>

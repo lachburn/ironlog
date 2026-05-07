@@ -8,7 +8,6 @@ import BottomSheet from '../components/BottomSheet'
 import BottomNav from '../components/BottomNav'
 import IronLogLogo from '../components/IronLogLogo'
 
-// ── Date helpers ────────────────────────────────────────────────
 function toYMD(d) {
   const dt = new Date(d)
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
@@ -18,11 +17,10 @@ function formatSessionDate(iso) {
   const d = new Date(iso)
   const weekday = d.toLocaleDateString('en-AU', { weekday: 'short' })
   const day = d.getDate()
-  const month = d.toLocaleDateString('en-AU', { month: 'long' })
+  const month = d.toLocaleDateString('en-AU', { month: 'short' })
   return `${weekday} ${day} ${month}`
 }
 
-// ── Stats helpers ────────────────────────────────────────────────
 function workoutsThisWeek(sessions) {
   const now = new Date()
   const daysSinceMon = (now.getDay() + 6) % 7
@@ -47,14 +45,6 @@ function calcStreak(sessions) {
   return streak
 }
 
-// ── Card styles ──────────────────────────────────────────────────
-const card = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border)',
-  borderRadius: 16,
-  boxShadow: 'var(--shadow)',
-}
-
 export default function Home() {
   const navigate = useNavigate()
   const { routines, loading, deleteRoutine } = useRoutines()
@@ -65,7 +55,6 @@ export default function Home() {
   const [lastSets, setLastSets] = useState(null)
   const [showNewSheet, setShowNewSheet] = useState(false)
 
-  // Fetch sets for the most recent session to compute volume
   useEffect(() => {
     if (!sessions.length) return
     fetchSession(sessions[0].id).then(({ sets }) => setLastSets(sets || []))
@@ -83,89 +72,47 @@ export default function Home() {
   const durationMins = lastSession
     ? Math.round((new Date(lastSession.completed_at) - new Date(lastSession.started_at)) / 60000)
     : 0
-  const totalVolume = lastSets
-    ? lastSets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0)
-    : null
 
   const weekCount = workoutsThisWeek(sessions)
   const streak = calcStreak(sessions)
   const totalSessions = sessions.length
 
   return (
-    <div style={{
-      background: 'var(--bg)',
-      height: '100dvh',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-    }}>
-      {/* Header */}
+    <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+      {/* ── Header ── */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '12px 20px 16px',
-        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)',
-        background: 'var(--bg)',
+        padding: '0 16px 12px',
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 10px)',
         flexShrink: 0,
+        background: 'var(--bg)',
       }}>
-        <IronLogLogo height={42} />
+        <IronLogLogo height={30} />
+        <div className="font-display" style={{ flex: 1, textAlign: 'center', fontSize: 22, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1 }}>
+          HOME
+        </div>
         <button
           onClick={() => navigate('/settings')}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: 8,
-            minWidth: 44,
-            minHeight: 44,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 12,
-            color: 'var(--accent)',
-          }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, color: 'var(--accent)' }}
         >
-          <SlidersHorizontal size={22} />
+          <SlidersHorizontal size={20} />
         </button>
       </div>
 
-      {/* Scroll area */}
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '8px 16px 120px' }}>
-        {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}>
-            <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Loading…</div>
-          </div>
-        ) : routines.length === 0 ? (
-          <div style={{ textAlign: 'center', paddingTop: 80, color: 'var(--text-secondary)' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>💪</div>
-            <div style={{ fontFamily: 'Bebas Neue', fontSize: 28, color: 'var(--text-primary)', marginBottom: 8 }}>
-              NO ROUTINES YET
-            </div>
-            <div style={{ fontSize: 14 }}>Tap + to create your first workout routine</div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {routines.map(r => (
-              <RoutineTile
-                key={r.id}
-                routine={r}
-                onClick={() => setSelectedRoutine(r)}
-                onLongPress={() => setDeletingRoutine(r)}
-              />
-            ))}
-          </div>
-        )}
+      {/* ── Pinned: combined last session + stats card ── */}
+      {lastSession && (
+        <div style={{ padding: '0 16px 12px', flexShrink: 0 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow)' }}>
 
-        {/* ── Last Session card ── */}
-        {lastSession && (
-          <div style={{ ...card, padding: '16px 18px', marginTop: 20 }}>
-            <div className="font-display" style={{ fontSize: 13, color: 'var(--accent)', letterSpacing: 1, marginBottom: 10 }}>
-              LAST SESSION
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            {/* Row 1 — last session */}
+            <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
+                  Last Session
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
                   {lastSession.routine_name}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
@@ -173,61 +120,86 @@ export default function Home() {
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+                <div className="font-display" style={{ fontSize: 30, color: 'var(--text-primary)', lineHeight: 1 }}>
                   {durationMins}m
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>duration</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>duration</div>
               </div>
             </div>
-            {totalVolume !== null && totalVolume > 0 && (
-              <div style={{
-                marginTop: 12,
-                paddingTop: 12,
-                borderTop: '1px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}>
-                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Total volume</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {totalVolume.toLocaleString()} kg
-                </span>
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* ── Weekly stats strip ── */}
-        {sessions.length > 0 && (
-          <div style={{ ...card, padding: '14px 16px', marginTop: 12 }}>
-            <div style={{ display: 'flex', gap: 8 }}>
+            {/* Divider */}
+            <div style={{ height: 1, background: 'var(--border)' }} />
+
+            {/* Row 2 — stats */}
+            <div style={{ display: 'flex', padding: '12px 0' }}>
               {[
-                { icon: '🗓', value: weekCount, label: 'This week' },
-                { icon: '🔥', value: streak, label: 'Day streak' },
-                { icon: '💪', value: totalSessions, label: 'All time' },
-              ].map(({ icon, value, label }) => (
-                <div key={label} style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '10px 4px',
-                  background: 'var(--bg)',
-                  borderRadius: 12,
-                  border: '1px solid var(--border)',
-                }}>
-                  <div style={{ fontSize: 18 }}>{icon}</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>{value}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
+                { value: weekCount, label: 'This Week' },
+                { value: streak,    label: 'Day Streak' },
+                { value: totalSessions, label: 'All Time' },
+              ].map(({ value, label }, i) => (
+                <div key={label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+                  {i > 0 && (
+                    <div style={{ position: 'absolute', left: 0, top: '10%', height: '80%', width: 1, background: 'var(--border)' }} />
+                  )}
+                  <div className="font-display" style={{ fontSize: 26, color: 'var(--text-primary)', lineHeight: 1 }}>{value}</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 3 }}>{label}</div>
                 </div>
               ))}
             </div>
+
           </div>
-        )}
+        </div>
+      )}
+
+      {/* ── Scrollable: routines ── */}
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <div
+          className="no-scrollbar"
+          style={{ height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 140px' }}
+        >
+          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+            My Routines
+          </div>
+
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Loading…</div>
+            </div>
+          ) : routines.length === 0 ? (
+            <div style={{ textAlign: 'center', paddingTop: 60, color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>💪</div>
+              <div className="font-display" style={{ fontSize: 28, color: 'var(--text-primary)', marginBottom: 8 }}>
+                NO ROUTINES YET
+              </div>
+              <div style={{ fontSize: 14 }}>Tap + to create your first workout routine</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {routines.map(r => (
+                <RoutineTile
+                  key={r.id}
+                  routine={r}
+                  onClick={() => setSelectedRoutine(r)}
+                  onLongPress={() => setDeletingRoutine(r)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Fade-to-bg gradient hint */}
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 72,
+          background: 'linear-gradient(to bottom, transparent, var(--bg))',
+          pointerEvents: 'none',
+        }} />
       </div>
 
-      {/* FAB */}
+      {/* ── FAB ── */}
       <button
         onClick={() => setShowNewSheet(true)}
         aria-label="New workout"
@@ -257,7 +229,7 @@ export default function Home() {
         +
       </button>
 
-      {/* New workout sheet */}
+      {/* ── New workout sheet ── */}
       <BottomSheet open={showNewSheet} onClose={() => setShowNewSheet(false)}>
         <div style={{ padding: '8px 20px 20px' }}>
           <div className="font-display" style={{ fontSize: 22, color: 'var(--text-primary)', letterSpacing: 1, marginBottom: 20 }}>
@@ -282,7 +254,7 @@ export default function Home() {
         </div>
       </BottomSheet>
 
-      {/* Routine action sheet */}
+      {/* ── Routine action sheet ── */}
       <BottomSheet open={!!selectedRoutine} onClose={() => setSelectedRoutine(null)}>
         {selectedRoutine && (
           <div style={{ padding: 20 }}>
@@ -300,16 +272,8 @@ export default function Home() {
 
             <div style={{ marginBottom: 20 }}>
               {(selectedRoutine.routine_exercises || []).map((re, i) => (
-                <div key={re.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 0', borderBottom: '1px solid var(--border)',
-                }}>
-                  <div style={{
-                    width: 24, height: 24, borderRadius: '50%',
-                    background: 'var(--accent)', color: '#000',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700, flexShrink: 0,
-                  }}>
+                <div key={re.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                     {i + 1}
                   </div>
                   <div>
@@ -333,11 +297,7 @@ export default function Home() {
             </button>
             <button
               onClick={() => navigate('/history')}
-              style={{
-                display: 'block', width: '100%', background: 'none', border: 'none',
-                padding: '12px 0 4px', color: 'var(--text-secondary)',
-                fontFamily: 'DM Sans', fontSize: 13, cursor: 'pointer', textAlign: 'center',
-              }}
+              style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: '12px 0 4px', color: 'var(--text-secondary)', fontFamily: 'DM Sans', fontSize: 13, cursor: 'pointer', textAlign: 'center' }}
             >
               View History
             </button>
@@ -345,7 +305,7 @@ export default function Home() {
         )}
       </BottomSheet>
 
-      {/* Delete confirmation sheet */}
+      {/* ── Delete confirmation sheet ── */}
       <BottomSheet open={!!deletingRoutine} onClose={() => setDeletingRoutine(null)}>
         {deletingRoutine && (
           <div style={{ padding: '8px 20px 20px' }}>
