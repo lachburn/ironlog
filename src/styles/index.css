@@ -25,15 +25,16 @@
 }
 
 :root:not(.dark) {
-  --bg: #F4F9F4;
+  --bg: #F2EFE9;
   --surface: #FFFFFF;
   --accent: #2D6A4F;
+  --accent-secondary: #52B788;
   --accent-hover: #1B4332;
-  --text-primary: #111111;
-  --text-secondary: #555555;
+  --text-primary: #1C1C1C;
+  --text-secondary: #999999;
   --destructive: #CC2200;
-  --border: rgba(0,0,0,0.08);
-  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --border: #E0DBD3;
+  --shadow: 0 1px 3px rgba(0,0,0,0.07);
 }
 
 * {
