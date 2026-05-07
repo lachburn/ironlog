@@ -103,7 +103,7 @@ export default function Auth() {
           <form onSubmit={handleSendOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <div className="font-display" style={{ fontSize: 22, color: 'var(--text-primary)', marginBottom: 4 }}>
-                SIGN IN
+                SIGN IN OR UP
               </div>
               <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
                 Enter your email and we'll send you a 6-digit code.
