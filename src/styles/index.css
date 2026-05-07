@@ -181,3 +181,10 @@ input::placeholder {
 /* Safe area */
 .safe-top    { padding-top: env(safe-area-inset-top, 0px); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 16px); }
+
+/* Portrait-only lock — show overlay in landscape */
+@media (orientation: landscape) {
+  #rotate-overlay {
+    display: flex !important;
+  }
+}
