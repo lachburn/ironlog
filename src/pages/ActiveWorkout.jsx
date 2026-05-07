@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useRoutines } from '../hooks/useRoutines'
 import { useWorkout } from '../hooks/useWorkout'
+import { useWeightUnit } from '../context/WeightUnitContext'
 import SetLogger from '../components/SetLogger'
 import BottomSheet from '../components/BottomSheet'
 
@@ -14,12 +15,12 @@ function formatDuration(seconds) {
   return `${m}m ${s}s`
 }
 
-function formatSetDisplay(s) {
+function formatSetDisplay(s, unit = 'kg', toDisplay = (v) => v) {
   if (s.duration_seconds) {
     return `${formatDuration(s.duration_seconds)}${s.distance_metres ? ` · ${s.distance_metres}m` : ''}`
   }
   if (!s.weight) return `${s.reps} reps`
-  return `${s.weight}kg × ${s.reps}`
+  return `${toDisplay(s.weight)}${unit} × ${s.reps}`
 }
 
 export default function ActiveWorkout() {
@@ -27,6 +28,7 @@ export default function ActiveWorkout() {
   const navigate = useNavigate()
   const { routines } = useRoutines()
   const { startSession, finishSession, cancelSession, logSet, getLastSets, saveProgress, getProgress } = useWorkout()
+  const { unit, toDisplay, toKg } = useWeightUnit()
 
   const routine = routines.find(r => r.id === id)
   const exercises = routine?.routine_exercises || []
@@ -143,6 +145,7 @@ export default function ActiveWorkout() {
 
   const handleCompleteSet = async (setData) => {
     if (!sessionId) return
+    const weightInKg = setData.weight != null ? toKg(setData.weight) : setData.weight
     const set = {
       session_id: sessionId,
       exercise_id: currentExId,
@@ -150,6 +153,7 @@ export default function ActiveWorkout() {
       exercise_type: exerciseType,
       set_number: setCount,
       ...setData,
+      weight: weightInKg,
     }
     const { data } = await logSet(set)
     const withMeta = { ...set, ...data, _exerciseId: currentExId }
@@ -157,10 +161,10 @@ export default function ActiveWorkout() {
 
     const nextLastSet = lastSets[setCount]
     if (nextLastSet) {
-      setNextSetWeight(nextLastSet.weight ?? setData.weight)
+      setNextSetWeight(nextLastSet.weight ?? weightInKg)
       setNextSetReps(nextLastSet.reps ?? setData.reps)
     } else {
-      if (setData.weight !== undefined) setNextSetWeight(setData.weight)
+      if (weightInKg !== undefined) setNextSetWeight(weightInKg)
       if (setData.reps !== undefined) setNextSetReps(setData.reps)
     }
 
@@ -173,6 +177,7 @@ export default function ActiveWorkout() {
     const isLegA = ss.leg === 'A'
     const activeEx = isLegA ? ss.exA : ss.exB
     const activeSetCount = isLegA ? ss.setCountA : ss.setCountB
+    const weightInKg = setData.weight != null ? toKg(setData.weight) : setData.weight
 
     const set = {
       session_id: sessionId,
@@ -181,6 +186,7 @@ export default function ActiveWorkout() {
       exercise_type: activeEx.exercises.type,
       set_number: activeSetCount + 1,
       ...setData,
+      weight: weightInKg,
     }
     const { data } = await logSet(set)
     const withMeta = { ...set, ...data, _exerciseId: activeEx.exercises.id }
@@ -189,7 +195,7 @@ export default function ActiveWorkout() {
     const newSetCount = activeSetCount + 1
     const lastSetsForLeg = isLegA ? ss.lastSetsA : ss.lastSetsB
     const nextLastSet = lastSetsForLeg[newSetCount]
-    const nextWeight = nextLastSet ? (nextLastSet.weight ?? setData.weight) : setData.weight
+    const nextWeight = nextLastSet ? (nextLastSet.weight ?? weightInKg) : weightInKg
     const nextReps = nextLastSet ? (nextLastSet.reps ?? setData.reps) : setData.reps
 
     const nextLeg = isLegA ? 'B' : 'A'
@@ -463,8 +469,9 @@ export default function ActiveWorkout() {
               setNumber={activeSetCount + 1}
               targetSets={effectiveTargetActive}
               exerciseType={activeType}
-              initialWeight={activeInitialWeight}
+              initialWeight={toDisplay(activeInitialWeight)}
               initialReps={activeInitialReps}
+              unit={unit}
               onComplete={handleSupersetCompleteSet}
             />
           )}
@@ -488,7 +495,7 @@ export default function ActiveWorkout() {
                   }}>
                     <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>✓</span>
                     <span>Set {s.set_number}:</span>
-                    <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s)}</span>
+                    <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s, unit, toDisplay)}</span>
                     {s.is_failure && (
                     <span style={{ fontSize: 10, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3, flexShrink: 0 }}>
                       FAIL
@@ -518,7 +525,7 @@ export default function ActiveWorkout() {
                   }}>
                     <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>✓</span>
                     <span>Set {s.set_number}:</span>
-                    <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s)}</span>
+                    <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s, unit, toDisplay)}</span>
                     {s.is_failure && (
                     <span style={{ fontSize: 10, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3, flexShrink: 0 }}>
                       FAIL
@@ -695,8 +702,9 @@ export default function ActiveWorkout() {
             setNumber={setCount}
             targetSets={effectiveTarget}
             exerciseType={exerciseType}
-            initialWeight={nextSetWeight}
+            initialWeight={toDisplay(nextSetWeight)}
             initialReps={nextSetReps}
+            unit={unit}
             onComplete={handleCompleteSet}
           />
         )}

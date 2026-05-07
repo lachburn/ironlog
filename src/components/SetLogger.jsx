@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-export default function SetLogger({ setNumber, targetSets, exerciseType, initialWeight, initialReps, onComplete }) {
+export default function SetLogger({ setNumber, targetSets, exerciseType, initialWeight, initialReps, unit = 'kg', onComplete }) {
   const isBodyweight = exerciseType === 'bodyweight'
   const isCardio = exerciseType === 'cardio'
 
@@ -72,7 +72,7 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 14 }}>
           {!isBodyweight && (
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Weight (kg)</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Weight ({unit})</div>
               <input
                 type="number"
                 inputMode="decimal"

@@ -2,18 +2,14 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { useWeightUnit } from '../context/WeightUnitContext'
 
 export default function Settings() {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const [weightUnit, setWeightUnit] = useState(() => localStorage.getItem('ironlog-weight-unit') || 'kg')
+  const { unit: weightUnit, setUnit: handleWeightUnit } = useWeightUnit()
   const [signingOut, setSigningOut] = useState(false)
-
-  const handleWeightUnit = (unit) => {
-    setWeightUnit(unit)
-    localStorage.setItem('ironlog-weight-unit', unit)
-  }
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -132,7 +128,7 @@ export default function Settings() {
         <div style={{ textAlign: 'center', paddingTop: 32, color: 'var(--text-secondary)', fontSize: 12 }}>
           <div className="font-display" style={{ fontSize: 20, color: 'var(--accent)', marginBottom: 4 }}>IRONLOG</div>
           Track every rep. Own every session.
-          <div style={{ marginTop: 8, fontSize: 11, opacity: 0.6 }}>v0.2.2</div>
+          <div style={{ marginTop: 8, fontSize: 11, opacity: 0.6 }}>v0.2.3</div>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SlidersHorizontal } from 'lucide-react'
 import { useHistory } from '../hooks/useHistory'
+import { useWeightUnit } from '../context/WeightUnitContext'
 import BottomNav from '../components/BottomNav'
 import IronLogLogo from '../components/IronLogLogo'
 
@@ -34,6 +35,7 @@ function timeAgo(iso) {
 export default function ExerciseHistory() {
   const navigate = useNavigate()
   const { fetchExerciseHistory, exHistCacheExists } = useHistory()
+  const { unit, toDisplay } = useWeightUnit()
   const [exercises, setExercises] = useState([])
   const [loading, setLoading] = useState(!exHistCacheExists)
   const [sort, setSort] = useState('recent')
@@ -161,7 +163,7 @@ export default function ExerciseHistory() {
                 </div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 2 }}>
                   {ex.total_sets} sets
-                  {ex.heaviest_weight > 0 && ` · ${ex.heaviest_weight}kg best`}
+                  {ex.heaviest_weight > 0 && ` · ${toDisplay(ex.heaviest_weight)}${unit} best`}
                   {` · ${timeAgo(ex.last_done)}`}
                 </div>
               </div>

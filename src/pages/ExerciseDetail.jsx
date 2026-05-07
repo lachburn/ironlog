@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useHistory } from '../hooks/useHistory'
+import { useWeightUnit } from '../context/WeightUnitContext'
 import LineChart from '../components/LineChart'
 
 const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
@@ -38,6 +39,8 @@ export default function ExerciseDetail() {
     )
   }
 
+  const { unit, toDisplay } = useWeightUnit()
+
   const { sessions, sets } = data
   const exerciseName = sets[0]?.exercise_name || 'Exercise'
   const exerciseType = sets[0]?.exercise_type || 'weighted'
@@ -52,7 +55,7 @@ export default function ExerciseDetail() {
       x: s.date,
       y: isCardio
         ? (s.sets.reduce((acc, x) => acc + (x.duration_seconds || 0), 0) / s.sets.length)
-        : s.max_weight,
+        : toDisplay(s.max_weight),
     }))
 
   // Overall stats
@@ -112,7 +115,7 @@ export default function ExerciseDetail() {
             avgReps != null
               ? { label: 'Avg Reps', value: avgReps }
               : heaviest > 0
-              ? { label: 'Best', value: `${heaviest}kg` }
+              ? { label: 'Best', value: `${toDisplay(heaviest)}${unit}` }
               : { label: 'Sets', value: totalSets },
           ].map((stat, i) => (
             <div key={i} className="card" style={{ padding: '12px 10px', textAlign: 'center' }}>
@@ -132,7 +135,7 @@ export default function ExerciseDetail() {
             </div>
             <LineChart data={chartData} color={accentColor} />
             {!isCardio && !isBodyweight && (
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'right', marginTop: 4 }}>kg</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'right', marginTop: 4 }}>{unit}</div>
             )}
           </div>
         )}
@@ -206,7 +209,7 @@ export default function ExerciseDetail() {
                         <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{s.reps}</td>
                       ) : (
                         <>
-                          <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, color: 'var(--text-primary)' }}>{s.weight}kg</td>
+                          <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, color: 'var(--text-primary)' }}>{toDisplay(s.weight)}{unit}</td>
                           <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{s.reps}</td>
                         </>
                       )}

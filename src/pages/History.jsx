@@ -1,8 +1,6 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SlidersHorizontal } from 'lucide-react'
 import { useHistory } from '../hooks/useHistory'
-import BottomSheet from '../components/BottomSheet'
 import BottomNav from '../components/BottomNav'
 import IronLogLogo from '../components/IronLogLogo'
 
@@ -18,30 +16,9 @@ function formatDuration(start, end) {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
 
-function TrashIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-    </svg>
-  )
-}
-
 export default function History() {
   const navigate = useNavigate()
-  const { sessions, loading, deleteWorkout } = useHistory()
-  const [deletingSession, setDeletingSession] = useState(null)
-  const [deleting, setDeleting] = useState(false)
-
-  const handleDelete = async () => {
-    if (!deletingSession) return
-    setDeleting(true)
-    await deleteWorkout(deletingSession.id)
-    setDeletingSession(null)
-    setDeleting(false)
-  }
+  const { sessions, loading } = useHistory()
 
   return (
     <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
@@ -124,74 +101,17 @@ export default function History() {
                     <div style={{ fontFamily: 'Bebas Neue', fontSize: 18, color: 'var(--accent)', letterSpacing: 1 }}>
                       {formatDuration(session.started_at, session.completed_at)}
                     </div>
-                    {session.hasFailure && (
-                      <span style={{ fontSize: 9, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 5px', borderRadius: 4, letterSpacing: 0.3 }}>
-                        FAIL
-                      </span>
-                    )}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>duration</div>
                 </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-secondary)', flexShrink: 0, opacity: 0.5 }}>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
               </div>
-
-              {/* Delete button */}
-              <button
-                onClick={e => { e.stopPropagation(); setDeletingSession(session) }}
-                aria-label="Delete workout"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-secondary)',
-                  padding: 8,
-                  minWidth: 36,
-                  minHeight: 44,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  opacity: 0.6,
-                  borderRadius: 8,
-                }}
-              >
-                <TrashIcon />
-              </button>
             </div>
           ))
         )}
       </div>
-
-      {/* Delete confirmation sheet */}
-      <BottomSheet open={!!deletingSession} onClose={() => !deleting && setDeletingSession(null)}>
-        {deletingSession && (
-          <div style={{ padding: '8px 20px 20px' }}>
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
-                Delete this workout?
-              </div>
-              <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                <strong>{deletingSession.routine_name}</strong> on {formatDate(deletingSession.started_at)}.
-                {' '}This cannot be undone.
-              </div>
-            </div>
-            <button
-              className="btn-destructive"
-              onClick={handleDelete}
-              disabled={deleting}
-              style={{ marginBottom: 10, opacity: deleting ? 0.5 : 1 }}
-            >
-              {deleting ? 'Deleting…' : 'Delete Workout'}
-            </button>
-            <button
-              className="btn-ghost"
-              onClick={() => setDeletingSession(null)}
-              disabled={deleting}
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-      </BottomSheet>
 
       <BottomNav />
     </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useHistory } from '../hooks/useHistory'
+import { useWeightUnit } from '../context/WeightUnitContext'
 import BottomSheet from '../components/BottomSheet'
 
 function formatDate(ts) {
@@ -46,18 +47,35 @@ function TrashIcon() {
 export default function SessionDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { fetchSession, deleteWorkout } = useHistory()
+  const { fetchSession, deleteWorkout, fetchExerciseDetail } = useHistory()
+  const { unit, toDisplay } = useWeightUnit()
   const [session, setSession] = useState(null)
   const [exercises, setExercises] = useState([])
+  const [exercisePRs, setExercisePRs] = useState({})
   const [loading, setLoading] = useState(true)
   const [showDeleteSheet, setShowDeleteSheet] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    fetchSession(id).then(({ session: s, sets }) => {
+    fetchSession(id).then(async ({ session: s, sets }) => {
       setSession(s)
-      setExercises(groupByExercise(sets))
+      const grouped = groupByExercise(sets)
+      setExercises(grouped)
       setLoading(false)
+
+      // Fetch PR data for each exercise
+      const prs = {}
+      for (const ex of grouped) {
+        if (!ex.exercise_id) continue
+        const { sets: allSets } = await fetchExerciseDetail(ex.exercise_id)
+        if (!allSets || allSets.length === 0) continue
+        if (ex.type === 'bodyweight') {
+          prs[ex.exercise_id] = Math.max(...allSets.map(s => s.reps || 0))
+        } else if (ex.type === 'weighted' || ex.type === 'dumbbell') {
+          prs[ex.exercise_id] = Math.max(...allSets.map(s => s.weight || 0))
+        }
+      }
+      setExercisePRs(prs)
     })
   }, [id]) // eslint-disable-line
 
@@ -186,11 +204,19 @@ export default function SessionDetail() {
                           <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Reps</th>
                         </>
                       )}
-                      <th style={{ width: 20 }} />
+                      <th style={{ width: 90, textAlign: 'right' }} />
+                      <th style={{ width: 40 }} />
                     </tr>
                   </thead>
                   <tbody>
-                    {ex.sets.map((s, j) => (
+                    {ex.sets.map((s, j) => {
+                      const isPR =
+                        (ex.type === 'bodyweight'
+                          ? s.reps != null && exercisePRs[ex.exercise_id] != null && s.reps >= exercisePRs[ex.exercise_id]
+                          : (ex.type === 'weighted' || ex.type === 'dumbbell')
+                            ? s.weight != null && exercisePRs[ex.exercise_id] != null && s.weight >= exercisePRs[ex.exercise_id]
+                            : false)
+                      return (
                       <tr key={j}>
                         <td style={{ padding: '5px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{s.set_number}</td>
                         {ex.type === 'cardio' ? (
@@ -208,19 +234,27 @@ export default function SessionDetail() {
                           <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{s.reps}</td>
                         ) : (
                           <>
-                            <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, color: 'var(--text-primary)' }}>{s.weight}kg</td>
+                            <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, color: 'var(--text-primary)' }}>{toDisplay(s.weight)}{unit}</td>
                             <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{s.reps}</td>
                           </>
                         )}
-                        <td style={{ textAlign: 'right', padding: '5px 0 5px 8px', fontSize: 13 }}>
+                        <td style={{ textAlign: 'right', padding: '5px 0 5px 4px', fontSize: 13, minWidth: 90 }}>
                           {s.is_failure && (
                             <span style={{ fontSize: 10, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3 }}>
-                              FAIL
+                              TO FAILURE
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'right', padding: '5px 0 5px 4px' }}>
+                          {isPR && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: '#C9A84C', background: 'rgba(201,168,76,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3 }}>
+                              PR
                             </span>
                           )}
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </button>

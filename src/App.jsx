@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
+import { WeightUnitProvider } from './context/WeightUnitContext'
 import Auth from './pages/Auth'
 import Home from './pages/Home'
 import EditRoutine from './pages/EditRoutine'
@@ -46,11 +47,13 @@ function AppRoutes() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </AuthProvider>
+      <WeightUnitProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </AuthProvider>
+      </WeightUnitProvider>
     </ThemeProvider>
   )
 }
