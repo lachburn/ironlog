@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Icon } from './Icon'
 
 export default function SetLogger({ setNumber, targetSets, exerciseType, initialWeight, initialReps, unit = 'kg', onComplete }) {
   const isBodyweight = exerciseType === 'bodyweight'
@@ -17,7 +18,13 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
   const buildData = (isFailure) => {
     if (isCardio) {
       const [min = 0, sec = 0] = duration.split(':').map(Number)
-      return { weight: null, reps: null, duration_seconds: min * 60 + sec, distance_metres: distance ? parseFloat(distance) : null, is_failure: isFailure }
+      return {
+        weight: null,
+        reps: null,
+        duration_seconds: min * 60 + sec,
+        distance_metres: distance ? parseFloat(distance) : null,
+        is_failure: isFailure,
+      }
     }
     if (isBodyweight) {
       return { weight: null, reps: parseInt(reps) || 0, duration_seconds: null, distance_metres: null, is_failure: isFailure }
@@ -41,14 +48,14 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
       borderRadius: 16,
       padding: 16,
     }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      <div className="eyebrow" style={{ color: 'var(--accent)', marginBottom: 12 }}>
         Set {setNumber}{targetSets ? ` of ${targetSets}` : ''}
       </div>
 
       {isCardio ? (
         <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Duration (mm:ss)</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Duration (mm:ss)</div>
             <input
               type="text"
               placeholder="0:00"
@@ -58,7 +65,7 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
             />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Distance (m)</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Distance (m)</div>
             <input
               type="number"
               placeholder="—"
@@ -72,7 +79,7 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 14 }}>
           {!isBodyweight && (
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Weight ({unit})</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Weight ({unit})</div>
               <input
                 type="number"
                 inputMode="decimal"
@@ -84,10 +91,10 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
             </div>
           )}
           {!isBodyweight && (
-            <div style={{ color: 'var(--text-secondary)', paddingBottom: 14, fontSize: 18 }}>×</div>
+            <div style={{ color: 'var(--muted)', paddingBottom: 14, fontSize: 18 }}>×</div>
           )}
           <div style={{ flex: isBodyweight ? 'auto' : 1, width: isBodyweight ? '100%' : undefined }}>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Reps</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Reps</div>
             <input
               type="number"
               inputMode="numeric"
@@ -101,12 +108,12 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
       )}
 
       <button
-        className="btn-primary"
+        className="btn btn-primary"
         onClick={handleComplete}
         disabled={!canComplete}
         style={{ opacity: canComplete ? 1 : 0.5 }}
       >
-        Complete Set
+        Complete set
       </button>
 
       <button
@@ -116,23 +123,24 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
           marginTop: 8,
           width: '100%',
           background: 'transparent',
-          border: '1px solid #4CAF50',
-          borderRadius: 12,
+          border: '1px solid var(--good)',
+          borderRadius: 14,
           padding: '10px 24px',
-          fontFamily: 'DM Sans',
           fontSize: 14,
           fontWeight: 600,
-          color: '#4CAF50',
+          color: 'var(--good)',
           cursor: canComplete ? 'pointer' : 'not-allowed',
           opacity: canComplete ? 1 : 0.35,
-          minHeight: 42,
+          minHeight: 44,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          gap: 8,
+          fontFamily: 'inherit',
           transition: 'opacity 200ms ease',
         }}
       >
-        Failure
+        <Icon name="trophy" size={14} /> Failure
       </button>
     </div>
   )

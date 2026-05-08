@@ -3,14 +3,60 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useRoutines } from '../hooks/useRoutines'
 import ExerciseSearchModal from '../components/ExerciseSearchModal'
 import BottomSheet from '../components/BottomSheet'
+import { Icon } from '../components/Icon'
 
 const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
 
-function getGraphemes(str) {
-  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
-    return [...new Intl.Segmenter().segment(str)].map(s => s.segment)
-  }
-  return Array.from(str)
+function TypeChip({ type }) {
+  return (
+    <span className="eyebrow" style={{
+      display: 'inline-block',
+      padding: '3px 8px',
+      borderRadius: 6,
+      background: 'var(--surface-2)',
+      color: 'var(--muted)',
+      letterSpacing: '0.06em',
+      fontSize: 10,
+    }}>
+      {TYPE_LABELS[type] || type}
+    </span>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div className="eyebrow" style={{ marginBottom: 6 }}>{label}</div>
+      {children}
+    </div>
+  )
+}
+
+function Mini({ label, value, set, decimal }) {
+  return (
+    <div style={{ flex: 1, background: 'var(--bg-deep)', borderRadius: 10, padding: '8px 10px' }}>
+      <div className="eyebrow" style={{ fontSize: 9 }}>{label}</div>
+      <input
+        type="text"
+        inputMode={decimal ? 'decimal' : 'numeric'}
+        value={value}
+        onChange={e => set(e.target.value)}
+        onFocus={e => e.target.select()}
+        className="mono"
+        style={{
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--ink)',
+          fontSize: 17,
+          fontWeight: 600,
+          padding: 0,
+          outline: 'none',
+          fontFamily: 'inherit',
+        }}
+      />
+    </div>
+  )
 }
 
 export default function EditRoutine() {
@@ -20,7 +66,6 @@ export default function EditRoutine() {
   const isNew = !id
 
   const [name, setName] = useState('')
-  const [emoji, setEmoji] = useState('💪')
   const [exercises, setExercises] = useState([])
   const [showExerciseModal, setShowExerciseModal] = useState(false)
   const [configuringExercise, setConfiguringExercise] = useState(null)
@@ -34,7 +79,6 @@ export default function EditRoutine() {
       const r = routines.find(r => r.id === id)
       if (r) {
         setName(r.name)
-        setEmoji(r.emoji || '💪')
         setExercises(
           (r.routine_exercises || []).map(re => ({
             id: re.id,
@@ -50,7 +94,6 @@ export default function EditRoutine() {
     }
   }, [id, isNew, routines])
 
-  // Called when user picks an exercise from the search modal
   const handleAddExercise = (ex) => {
     setShowExerciseModal(false)
     setConfiguringExercise({
@@ -62,7 +105,6 @@ export default function EditRoutine() {
     })
   }
 
-  // Called when user taps subtitle on an existing row
   const handleEditDefaults = (i) => {
     const ex = exercises[i]
     setConfiguringExercise({
@@ -89,9 +131,7 @@ export default function EditRoutine() {
     if (editIndex === null) {
       setExercises(prev => [...prev, entry])
     } else {
-      setExercises(prev => prev.map((e, i) =>
-        i === editIndex ? { ...e, ...entry } : e
-      ))
+      setExercises(prev => prev.map((e, i) => i === editIndex ? { ...e, ...entry } : e))
     }
     setConfiguringExercise(null)
   }
@@ -120,12 +160,12 @@ export default function EditRoutine() {
     setError('')
 
     if (isNew) {
-      const { data, error: err } = await createRoutine({ name: name.trim(), emoji })
+      const { data, error: err } = await createRoutine({ name: name.trim(), emoji: '' })
       if (err) { setError(err.message); setSaving(false); return }
       if (exercises.length > 0) await saveRoutineExercises(data.id, exercises)
       navigate('/')
     } else {
-      await updateRoutine(id, { name: name.trim(), emoji })
+      await updateRoutine(id, { name: name.trim() })
       await saveRoutineExercises(id, exercises)
       navigate('/')
     }
@@ -143,174 +183,205 @@ export default function EditRoutine() {
   const cfgShowWeight = cfgType === 'weighted' || cfgType === 'dumbbell'
 
   return (
-    <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{
+      background: 'var(--bg)',
+      height: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      position: 'relative',
+    }}>
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '56px 16px 16px',
-        paddingTop: 'max(56px, calc(env(safe-area-inset-top) + 16px))',
-        borderBottom: '1px solid var(--border)',
-        flexShrink: 0,
-      }}>
-        <button
-          onClick={() => navigate(-1)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: 'var(--accent)', padding: '4px 8px', minHeight: 44 }}
-        >
-          ←
-        </button>
-        <div className="font-display" style={{ fontSize: 26, color: 'var(--text-primary)', flex: 1, letterSpacing: 1 }}>
-          {isNew ? 'NEW ROUTINE' : 'EDIT ROUTINE'}
-        </div>
-        {!isNew && (
+      <div style={{ flexShrink: 0, padding: '8px 18px 8px', background: 'var(--bg)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', minHeight: 44, gap: 10 }}>
           <button
-            onClick={() => setShowDeleteSheet(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--destructive)', padding: '4px 8px', minHeight: 44, display: 'flex', alignItems: 'center' }}
+            onClick={() => navigate('/')}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--ink)',
+              fontSize: 14,
+              padding: '6px 4px',
+              fontFamily: 'inherit',
+            }}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-              <path d="M10 11v6M14 11v6"/>
-              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-            </svg>
+            Cancel
           </button>
-        )}
+          <div style={{
+            flex: 1,
+            textAlign: 'center',
+            fontWeight: 600,
+            fontSize: 15,
+            letterSpacing: '-0.01em',
+            color: 'var(--ink)',
+          }}>
+            {isNew ? 'New routine' : 'Edit routine'}
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={!name.trim() || !exercises.length}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--ink)',
+              fontSize: 14,
+              fontWeight: 600,
+              padding: '6px 4px',
+              opacity: name.trim() && exercises.length ? 1 : 0.4,
+              fontFamily: 'inherit',
+            }}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
       </div>
 
-      {/* Scrollable body */}
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '20px 16px 120px' }}>
-        {/* Emoji input + Name */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 20 }}>
-          <div style={{ flexShrink: 0 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>ICON</div>
-            <input
-              type="text"
-              value={emoji}
-              onChange={e => {
-                const val = e.target.value
-                if (!val) return
-                const segs = getGraphemes(val)
-                if (segs.length > 0) setEmoji(segs[segs.length - 1])
-              }}
-              style={{
-                width: 64,
-                height: 56,
-                borderRadius: 12,
-                fontSize: 30,
-                textAlign: 'center',
-                padding: 0,
-                lineHeight: '56px',
-              }}
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>NAME</div>
-            <input
-              type="text"
-              placeholder="Routine name"
-              value={name}
-              onChange={e => setName(e.target.value)}
-            />
-          </div>
+      <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '0 18px 24px' }}>
+        {/* Name field */}
+        <Field label="Routine name">
+          <input
+            type="text"
+            autoFocus
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="e.g. Push Day"
+          />
+        </Field>
+
+        {/* Exercises header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 8,
+          marginTop: 4,
+        }}>
+          <div className="eyebrow">Exercises</div>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--muted)' }}>{exercises.length}</div>
         </div>
 
-        {/* Exercises */}
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
-            Exercises
+        {exercises.length === 0 && (
+          <div style={{
+            padding: '24px 16px',
+            textAlign: 'center',
+            borderRadius: 14,
+            border: '1px dashed var(--border-2)',
+            color: 'var(--muted)',
+            fontSize: 13,
+            marginBottom: 12,
+          }}>
+            No exercises yet. Add one below.
           </div>
+        )}
 
-          {exercises.length === 0 ? (
-            <div style={{ color: 'var(--text-secondary)', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>
-              No exercises yet. Add some below.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {exercises.map((ex, i) => (
-                <div key={i} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 12,
-                  padding: '12px 12px',
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: 'var(--text-primary)', fontSize: 15, fontWeight: 500 }}>{ex.name}</div>
-                    <button
-                      onClick={() => handleEditDefaults(i)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        cursor: 'pointer',
-                        color: 'var(--accent)',
-                        fontSize: 12,
-                        fontFamily: 'DM Sans',
-                        textAlign: 'left',
-                        marginTop: 2,
-                      }}
-                    >
-                      {TYPE_LABELS[ex.type]} · {ex.default_sets} sets × {ex.default_reps} reps
-                      {ex.default_weight > 0 ? ` @ ${ex.default_weight}kg` : ''} ✎
-                    </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+          {exercises.map((re, i) => {
+            const isW = re.type === 'weighted' || re.type === 'dumbbell'
+            return (
+              <div key={i} className="card" style={{ padding: '12px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, fontSize: 14, color: 'var(--ink)' }}>{re.name}</div>
+                    <div style={{ marginTop: 4 }}>
+                      <TypeChip type={re.type} />
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ display: 'flex', gap: 2 }}>
                     <button
                       onClick={() => moveUp(i)}
                       disabled={i === 0}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: i === 0 ? 'var(--border)' : 'var(--text-secondary)', fontSize: 16, padding: 4, minHeight: 28 }}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: i === 0 ? 'var(--faint)' : 'var(--ink-2)',
+                        width: 32, height: 32, borderRadius: 8,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: 0,
+                      }}
                     >
-                      ↑
+                      <Icon name="chev-up" size={14} />
                     </button>
                     <button
                       onClick={() => moveDown(i)}
                       disabled={i === exercises.length - 1}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: i === exercises.length - 1 ? 'var(--border)' : 'var(--text-secondary)', fontSize: 16, padding: 4, minHeight: 28 }}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: i === exercises.length - 1 ? 'var(--faint)' : 'var(--ink-2)',
+                        width: 32, height: 32, borderRadius: 8,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: 0,
+                      }}
                     >
-                      ↓
+                      <Icon name="chev-down" size={14} />
+                    </button>
+                    <button
+                      onClick={() => removeExercise(i)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'var(--muted)',
+                        width: 32, height: 32, borderRadius: 8,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: 0,
+                      }}
+                    >
+                      <Icon name="x" size={14} />
                     </button>
                   </div>
-                  <button
-                    onClick={() => removeExercise(i)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--destructive)', fontSize: 18, padding: 4, minHeight: 44, minWidth: 36 }}
-                  >
-                    ×
-                  </button>
                 </div>
-              ))}
-            </div>
-          )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Mini
+                    label="Sets"
+                    value={re.default_sets}
+                    set={v => setExercises(exercises.map((x, j) => j === i ? { ...x, default_sets: v } : x))}
+                  />
+                  <Mini
+                    label="Reps"
+                    value={re.default_reps}
+                    set={v => setExercises(exercises.map((x, j) => j === i ? { ...x, default_reps: v } : x))}
+                  />
+                  {isW && (
+                    <Mini
+                      label="kg"
+                      value={re.default_weight}
+                      decimal
+                      set={v => setExercises(exercises.map((x, j) => j === i ? { ...x, default_weight: v } : x))}
+                    />
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
 
-        <button
-          className="btn-ghost"
-          onClick={() => setShowExerciseModal(true)}
-          style={{ marginBottom: 8 }}
-        >
-          + Add Exercise
+        <button className="btn btn-ghost" onClick={() => setShowExerciseModal(true)}>
+          <Icon name="plus" size={14} /> Add exercise
         </button>
 
         {error && (
-          <div style={{ color: 'var(--destructive)', fontSize: 13, textAlign: 'center', marginBottom: 8 }}>
+          <div style={{ color: 'var(--danger)', fontSize: 13, textAlign: 'center', marginTop: 8 }}>
             {error}
           </div>
         )}
-      </div>
 
-      {/* Footer save button */}
-      <div style={{
-        padding: '12px 16px',
-        paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))',
-        borderTop: '1px solid var(--border)',
-        background: 'var(--bg)',
-        flexShrink: 0,
-      }}>
-        <button className="btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : 'Save Routine'}
-        </button>
+        {!isNew && (
+          <button
+            onClick={() => setShowDeleteSheet(true)}
+            style={{
+              width: '100%',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--danger)',
+              fontSize: 13,
+              padding: '14px 0',
+              marginTop: 16,
+              fontFamily: 'inherit',
+            }}
+          >
+            Delete routine
+          </button>
+        )}
       </div>
 
       <ExerciseSearchModal
@@ -321,102 +392,95 @@ export default function EditRoutine() {
       />
 
       {/* Delete confirmation sheet */}
-      <BottomSheet open={showDeleteSheet} onClose={() => !deleting && setShowDeleteSheet(false)}>
-        <div style={{ padding: '8px 20px 20px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 20 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🗑️</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+      {showDeleteSheet && (
+        <BottomSheet open={showDeleteSheet} onClose={() => !deleting && setShowDeleteSheet(false)}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
               Delete "{name}"?
             </div>
-            <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>
               This will permanently delete the routine. Your workout history will not be affected.
             </div>
           </div>
           <button
-            className="btn-destructive"
+            className="btn btn-danger"
             onClick={handleDelete}
             disabled={deleting}
-            style={{ marginBottom: 10, opacity: deleting ? 0.5 : 1 }}
           >
-            {deleting ? 'Deleting…' : 'Delete Routine'}
+            {deleting ? 'Deleting…' : 'Delete routine'}
           </button>
-          <button className="btn-ghost" onClick={() => setShowDeleteSheet(false)} disabled={deleting}>
+          <button
+            className="btn btn-ghost"
+            onClick={() => setShowDeleteSheet(false)}
+            disabled={deleting}
+            style={{ marginTop: 8 }}
+          >
             Cancel
           </button>
-        </div>
-      </BottomSheet>
+        </BottomSheet>
+      )}
 
       {/* Exercise defaults config sheet */}
-      <BottomSheet
-        open={!!configuringExercise}
-        onClose={() => setConfiguringExercise(null)}
-        title={configuringExercise?.editIndex === null ? 'Set Defaults' : 'Edit Defaults'}
-      >
-        {configuringExercise && (
-          <div style={{ padding: '8px 20px 20px' }}>
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 16 }}>
-                {configuringExercise.exercise.name}
-              </div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-                {TYPE_LABELS[configuringExercise.exercise.type] || configuringExercise.exercise.type}
-              </div>
+      {configuringExercise && (
+        <BottomSheet
+          open={!!configuringExercise}
+          onClose={() => setConfiguringExercise(null)}
+          title={configuringExercise?.editIndex === null ? 'Set defaults' : 'Edit defaults'}
+        >
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 16 }}>
+              {configuringExercise.exercise.name}
             </div>
+            <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>
+              {TYPE_LABELS[configuringExercise.exercise.type] || configuringExercise.exercise.type}
+            </div>
+          </div>
 
-            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+            <div style={{ flex: 1 }}>
+              <div className="eyebrow" style={{ marginBottom: 4 }}>Sets</div>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="1"
+                value={configuringExercise.sets}
+                onChange={e => setConfiguringExercise(prev => ({ ...prev, sets: e.target.value }))}
+                style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
+              />
+            </div>
+            {!cfgIsCardio && (
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>
-                  SETS
-                </div>
+                <div className="eyebrow" style={{ marginBottom: 4 }}>Reps</div>
                 <input
                   type="number"
                   inputMode="numeric"
                   min="1"
-                  value={configuringExercise.sets}
-                  onChange={e => setConfiguringExercise(prev => ({ ...prev, sets: e.target.value }))}
+                  value={configuringExercise.reps}
+                  onChange={e => setConfiguringExercise(prev => ({ ...prev, reps: e.target.value }))}
                   style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
                 />
               </div>
-
-              {!cfgIsCardio && (
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>
-                    REPS
-                  </div>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    value={configuringExercise.reps}
-                    onChange={e => setConfiguringExercise(prev => ({ ...prev, reps: e.target.value }))}
-                    style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
-                  />
-                </div>
-              )}
-
-              {cfgShowWeight && (
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>
-                    WEIGHT (KG)
-                  </div>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    value={configuringExercise.weight}
-                    onChange={e => setConfiguringExercise(prev => ({ ...prev, weight: e.target.value }))}
-                    style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
-                  />
-                </div>
-              )}
-            </div>
-
-            <button className="btn-primary" onClick={handleConfigConfirm}>
-              {configuringExercise.editIndex === null ? 'Add Exercise' : 'Save Changes'}
-            </button>
+            )}
+            {cfgShowWeight && (
+              <div style={{ flex: 1 }}>
+                <div className="eyebrow" style={{ marginBottom: 4 }}>kg</div>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={configuringExercise.weight}
+                  onChange={e => setConfiguringExercise(prev => ({ ...prev, weight: e.target.value }))}
+                  style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
+                />
+              </div>
+            )}
           </div>
-        )}
-      </BottomSheet>
+
+          <button className="btn btn-primary" onClick={handleConfigConfirm}>
+            {configuringExercise.editIndex === null ? 'Add exercise' : 'Save changes'}
+          </button>
+        </BottomSheet>
+      )}
     </div>
   )
 }

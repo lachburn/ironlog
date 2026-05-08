@@ -3,11 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useRoutines } from '../hooks/useRoutines'
 import { useWorkout } from '../hooks/useWorkout'
 import { useWeightUnit } from '../context/WeightUnitContext'
-import SetLogger from '../components/SetLogger'
 import BottomSheet from '../components/BottomSheet'
+import { Icon } from '../components/Icon'
 
 const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
-const TYPE_COLORS = { weighted: '#C9A84C', dumbbell: '#E2C06E', bodyweight: '#4CAF50', cardio: '#2196F3' }
 
 function formatDuration(seconds) {
   const m = Math.floor(seconds / 60)
@@ -15,12 +14,137 @@ function formatDuration(seconds) {
   return `${m}m ${s}s`
 }
 
-function formatSetDisplay(s, unit = 'kg', toDisplay = (v) => v) {
+function fmtElapsed(startIso) {
+  const s = Math.floor((Date.now() - new Date(startIso)) / 1000)
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+}
+
+function formatSetDisplay(s, unit = 'kg', toDisplay = v => v) {
   if (s.duration_seconds) {
     return `${formatDuration(s.duration_seconds)}${s.distance_metres ? ` · ${s.distance_metres}m` : ''}`
   }
   if (!s.weight) return `${s.reps} reps`
   return `${toDisplay(s.weight)}${unit} × ${s.reps}`
+}
+
+function TypeChip({ type }) {
+  return (
+    <span className="eyebrow" style={{
+      display: 'inline-block',
+      padding: '3px 8px',
+      borderRadius: 6,
+      background: 'var(--surface-2)',
+      color: 'var(--muted)',
+      letterSpacing: '0.06em',
+      fontSize: 10,
+    }}>
+      {TYPE_LABELS[type] || type}
+    </span>
+  )
+}
+
+// Inline set row with editable fields
+function SetRow({ idx, set, type, update, remove }) {
+  const isWeighted = type === 'weighted' || type === 'dumbbell'
+  const isCardio = type === 'cardio'
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      background: set.done ? 'var(--surface-2)' : 'var(--surface)',
+      border: `1px solid ${set.done ? 'var(--border)' : 'var(--border)'}`,
+      borderRadius: 14,
+      padding: '10px 12px',
+      transition: 'background .15s',
+    }}>
+      {/* Set number badge */}
+      <div className="mono" style={{
+        width: 28, height: 28, borderRadius: 8,
+        background: set.done ? 'var(--accent)' : 'var(--bg-deep)',
+        color: set.done ? 'var(--accent-ink)' : 'var(--muted)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 12, fontWeight: 600, flexShrink: 0,
+      }}>
+        {idx}
+      </div>
+
+      {isWeighted && (
+        <>
+          <FieldInline label="kg" value={set.weight} onChange={v => update({ weight: v })} decimal />
+          <span style={{ color: 'var(--faint)' }}>×</span>
+          <FieldInline label="reps" value={set.reps} onChange={v => update({ reps: v })} />
+        </>
+      )}
+      {type === 'bodyweight' && (
+        <FieldInline label="reps" value={set.reps} onChange={v => update({ reps: v })} wide />
+      )}
+      {isCardio && (
+        <FieldInline label="sec" value={set.duration || set.reps} onChange={v => update({ duration: v, reps: v })} wide />
+      )}
+
+      {/* Done toggle */}
+      <button
+        onClick={() => update({ done: !set.done })}
+        aria-label="Toggle set"
+        style={{
+          marginLeft: 'auto',
+          width: 36, height: 36, borderRadius: 999,
+          background: set.done ? 'var(--accent)' : 'var(--bg-deep)',
+          border: set.done ? 'none' : '1px solid var(--border)',
+          color: set.done ? 'var(--accent-ink)' : 'var(--muted)',
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Icon name="check" size={16} stroke={2.4} />
+      </button>
+
+      {/* Remove */}
+      <button
+        onClick={remove}
+        aria-label="Remove set"
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--faint)', padding: 4,
+          display: 'flex', alignItems: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Icon name="x" size={14} />
+      </button>
+    </div>
+  )
+}
+
+function FieldInline({ label, value, onChange, decimal, wide }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, minWidth: wide ? 80 : 60 }}>
+      <input
+        type="text"
+        inputMode={decimal ? 'decimal' : 'numeric'}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="mono"
+        style={{
+          width: wide ? 64 : 44,
+          padding: '4px 0',
+          background: 'transparent',
+          border: 'none',
+          borderBottom: '1px solid var(--border)',
+          color: 'var(--ink)',
+          fontSize: 17,
+          fontWeight: 600,
+          textAlign: 'center',
+          outline: 'none',
+          fontFamily: 'inherit',
+        }}
+        onFocus={e => e.target.select()}
+      />
+      <span style={{ fontSize: 11, color: 'var(--muted)' }}>{label}</span>
+    </div>
+  )
 }
 
 export default function ActiveWorkout() {
@@ -45,49 +169,15 @@ export default function ActiveWorkout() {
   const [finishing, setFinishing] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const [showQuit, setShowQuit] = useState(false)
-  const [keepAwake, setKeepAwake] = useState(false)
-  const wakeLockRef = useRef(null)
+  const [startedAt] = useState(() => new Date().toISOString())
+  const [now, setNow] = useState(Date.now())
 
-  // Superset state
-  const [supersetState, setSupersetState] = useState(null)
-  const [showSupersetPicker, setShowSupersetPicker] = useState(false)
-  const [supersetSelections, setSupersetSelections] = useState([]) // indices, max 2
-
-  const acquireWakeLock = async () => {
-    if (!('wakeLock' in navigator)) return
-    try {
-      wakeLockRef.current = await navigator.wakeLock.request('screen')
-      wakeLockRef.current.addEventListener('release', () => {
-        wakeLockRef.current = null
-      })
-    } catch {
-      setKeepAwake(false)
-    }
-  }
-
-  const toggleKeepAwake = async () => {
-    if (keepAwake) {
-      wakeLockRef.current?.release()
-      wakeLockRef.current = null
-      setKeepAwake(false)
-    } else {
-      await acquireWakeLock()
-      setKeepAwake(true)
-    }
-  }
+  // Inline set logging state (new design uses inline rows instead of SetLogger)
+  const [inlineSets, setInlineSets] = useState([])
 
   useEffect(() => {
-    const handleVisibility = () => {
-      if (keepAwake && document.visibilityState === 'visible' && !wakeLockRef.current) {
-        acquireWakeLock()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [keepAwake])
-
-  useEffect(() => {
-    return () => { wakeLockRef.current?.release() }
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
   }, [])
 
   useEffect(() => {
@@ -99,6 +189,7 @@ export default function ActiveWorkout() {
   const queue = exerciseQueue || exercises
   const currentExercise = queue[exerciseIndex]
   const exerciseType = currentExercise?.exercises?.type || 'weighted'
+  const isWeighted = exerciseType === 'weighted' || exerciseType === 'dumbbell'
 
   useEffect(() => {
     if (initialized || !routine) return
@@ -135,84 +226,79 @@ export default function ActiveWorkout() {
     })
     setSetCount(1)
     setBonusSets(0)
+
+    // Build initial inline set rows from defaults
+    const defaultSets = currentExercise.default_sets || 3
+    setInlineSets(
+      Array.from({ length: defaultSets }).map(() => ({
+        weight: currentExercise.default_weight || '',
+        reps: currentExercise.default_reps || '',
+        done: false,
+      }))
+    )
   }, [exerciseIndex, currentExercise]) // eslint-disable-line
+
+  // Update inline sets with last session data when it arrives
+  useEffect(() => {
+    if (!lastSets.length) return
+    setInlineSets(prev => prev.map((s, i) => {
+      const last = lastSets[i] || lastSets[lastSets.length - 1]
+      return {
+        ...s,
+        weight: s.done ? s.weight : (last?.weight ?? s.weight),
+        reps: s.done ? s.reps : (last?.reps ?? s.reps),
+      }
+    }))
+  }, [lastSets]) // eslint-disable-line
 
   const currentExId = currentExercise?.exercises?.id
   const currentExSets = loggedSets.filter(s => s._exerciseId === currentExId)
   const targetSets = currentExercise?.default_sets || null
   const effectiveTarget = (targetSets || 0) + bonusSets
-  const allSetsComplete = targetSets !== null && currentExSets.length >= effectiveTarget
+  const isLastExercise = exerciseIndex >= queue.length - 1
+  const hasLoggedAtLeastOneSet = currentExSets.length > 0 || inlineSets.some(s => s.done)
 
-  const handleCompleteSet = async (setData) => {
-    if (!sessionId) return
-    const weightInKg = setData.weight != null ? toKg(setData.weight) : setData.weight
-    const set = {
-      session_id: sessionId,
-      exercise_id: currentExId,
-      exercise_name: currentExercise.exercises?.name,
-      exercise_type: exerciseType,
-      set_number: setCount,
-      ...setData,
-      weight: weightInKg,
-    }
-    const { data } = await logSet(set)
-    const withMeta = { ...set, ...data, _exerciseId: currentExId }
-    setLoggedSets(prev => [...prev, withMeta])
+  const doneSetsCount = inlineSets.filter(s => s.done).length
+  const totalSetsCount = inlineSets.length
 
-    const nextLastSet = lastSets[setCount]
-    if (nextLastSet) {
-      setNextSetWeight(nextLastSet.weight ?? weightInKg)
-      setNextSetReps(nextLastSet.reps ?? setData.reps)
-    } else {
-      if (weightInKg !== undefined) setNextSetWeight(weightInKg)
-      if (setData.reps !== undefined) setNextSetReps(setData.reps)
-    }
-
-    setSetCount(c => c + 1)
+  const updateInlineSet = (i, patch) => {
+    setInlineSets(prev => prev.map((s, si) => si !== i ? s : { ...s, ...patch }))
   }
 
-  const handleSupersetCompleteSet = async (setData) => {
-    if (!sessionId) return
-    const ss = supersetState
-    const isLegA = ss.leg === 'A'
-    const activeEx = isLegA ? ss.exA : ss.exB
-    const activeSetCount = isLegA ? ss.setCountA : ss.setCountB
-    const weightInKg = setData.weight != null ? toKg(setData.weight) : setData.weight
-
-    const set = {
-      session_id: sessionId,
-      exercise_id: activeEx.exercises.id,
-      exercise_name: activeEx.exercises.name,
-      exercise_type: activeEx.exercises.type,
-      set_number: activeSetCount + 1,
-      ...setData,
-      weight: weightInKg,
-    }
-    const { data } = await logSet(set)
-    const withMeta = { ...set, ...data, _exerciseId: activeEx.exercises.id }
-    setLoggedSets(prev => [...prev, withMeta])
-
-    const newSetCount = activeSetCount + 1
-    const lastSetsForLeg = isLegA ? ss.lastSetsA : ss.lastSetsB
-    const nextLastSet = lastSetsForLeg[newSetCount]
-    const nextWeight = nextLastSet ? (nextLastSet.weight ?? weightInKg) : weightInKg
-    const nextReps = nextLastSet ? (nextLastSet.reps ?? setData.reps) : setData.reps
-
-    const nextLeg = isLegA ? 'B' : 'A'
-
-    setSupersetState(prev => ({
-      ...prev,
-      leg: nextLeg,
-      setCountA: isLegA ? newSetCount : prev.setCountA,
-      setCountB: isLegA ? prev.setCountB : newSetCount,
-      nextWeightA: isLegA ? nextWeight : prev.nextWeightA,
-      nextRepsA: isLegA ? nextReps : prev.nextRepsA,
-      nextWeightB: isLegA ? prev.nextWeightB : nextWeight,
-      nextRepsB: isLegA ? prev.nextRepsB : nextReps,
-    }))
+  const addInlineSet = () => {
+    const last = inlineSets[inlineSets.length - 1] || { weight: '', reps: '', done: false }
+    setInlineSets(prev => [...prev, { weight: last.weight, reps: last.reps, done: false }])
   }
 
-  const goNextExercise = () => {
+  const removeInlineSet = (i) => {
+    setInlineSets(prev => prev.filter((_, si) => si !== i))
+  }
+
+  const handleLogDoneSets = async () => {
+    if (!sessionId) return
+    const doneSets = inlineSets.filter(s => s.done)
+    for (let i = 0; i < doneSets.length; i++) {
+      const s = doneSets[i]
+      const weightInKg = s.weight != null && s.weight !== '' ? toKg(parseFloat(s.weight) || 0) : null
+      const set = {
+        session_id: sessionId,
+        exercise_id: currentExId,
+        exercise_name: currentExercise.exercises?.name,
+        exercise_type: exerciseType,
+        set_number: i + 1,
+        weight: weightInKg,
+        reps: parseInt(s.reps) || 0,
+        duration_seconds: null,
+        distance_metres: null,
+      }
+      const { data } = await logSet(set)
+      const withMeta = { ...set, ...data, _exerciseId: currentExId }
+      setLoggedSets(prev => [...prev, withMeta])
+    }
+  }
+
+  const goNextExercise = async () => {
+    await handleLogDoneSets()
     const nextIdx = exerciseIndex + 1
     setExerciseIndex(nextIdx)
     saveProgress(sessionId, nextIdx)
@@ -232,702 +318,273 @@ export default function ActiveWorkout() {
   const handleFinish = async () => {
     if (!sessionId) return
     setFinishing(true)
+    await handleLogDoneSets()
     await finishSession(sessionId)
     navigate(`/history/${sessionId}`, { replace: true })
   }
 
-  const exitSuperset = () => {
-    if (!supersetState) return
-    const { idxA, idxB } = supersetState
-    const nextIdx = Math.max(idxA, idxB) + 1
-    setSupersetState(null)
-    setSupersetSelections([])
-    if (nextIdx >= queue.length) {
-      handleFinish()
-    } else {
-      setExerciseIndex(nextIdx)
-      saveProgress(sessionId, nextIdx)
-      setBonusSets(0)
-    }
-  }
-
-  const startSuperset = async () => {
-    if (supersetSelections.length < 2) return
-    const [idxA, idxB] = supersetSelections
-    const exA = queue[idxA]
-    const exB = queue[idxB]
-
-    const [setsA, setsB] = await Promise.all([
-      getLastSets(exA.exercises.id),
-      getLastSets(exB.exercises.id),
-    ])
-
-    const nextWeightA = setsA.length > 0 ? setsA[0].weight : (exA.default_weight || null)
-    const nextRepsA = setsA.length > 0 ? setsA[0].reps : (exA.default_reps || null)
-    const nextWeightB = setsB.length > 0 ? setsB[0].weight : (exB.default_weight || null)
-    const nextRepsB = setsB.length > 0 ? setsB[0].reps : (exB.default_reps || null)
-
-    setSupersetState({
-      idxA,
-      idxB,
-      exA,
-      exB,
-      leg: 'A',
-      setCountA: 0,
-      setCountB: 0,
-      bonusRounds: 0,
-      lastSetsA: setsA,
-      lastSetsB: setsB,
-      nextWeightA,
-      nextRepsA,
-      nextWeightB,
-      nextRepsB,
-    })
-    setShowSupersetPicker(false)
-    setSupersetSelections([])
-  }
-
-  const handleSupersetPickerSelect = (idx) => {
-    setSupersetSelections(prev => {
-      if (prev.includes(idx)) {
-        return prev.filter(i => i !== idx)
-      }
-      if (prev.length >= 2) {
-        return [prev[1], idx]
-      }
-      return [...prev, idx]
-    })
+  const handleQuit = async () => {
+    await cancelSession(sessionId)
+    navigate('/')
   }
 
   if (!routine || queue.length === 0) {
     return (
       <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--text-secondary)' }}>Loading workout…</div>
+        <div style={{ color: 'var(--muted)' }}>Loading workout…</div>
       </div>
     )
   }
 
-  const isLastExercise = exerciseIndex >= queue.length - 1
-  const hasLoggedAtLeastOneSet = currentExSets.length > 0
-  const remainingExercises = queue.length - exerciseIndex
-  const canStartSuperset = remainingExercises >= 2 && !supersetState
+  // Progress bar
+  const progressPct = queue.length > 0 ? ((exerciseIndex + (doneSetsCount / Math.max(totalSetsCount, 1))) / queue.length) * 100 : 0
 
-  // ── Superset active render ──
-  if (supersetState) {
-    const ss = supersetState
-    const activeEx = ss.leg === 'A' ? ss.exA : ss.exB
-    const otherEx = ss.leg === 'A' ? ss.exB : ss.exA
-    const activeType = activeEx.exercises?.type || 'weighted'
-    const activeSetCount = ss.leg === 'A' ? ss.setCountA : ss.setCountB
-    const targetSetsA = ss.exA.default_sets || 3
-    const targetSetsB = ss.exB.default_sets || 3
-    const effectiveTargetA = targetSetsA + ss.bonusRounds
-    const effectiveTargetB = targetSetsB + ss.bonusRounds
-    const effectiveTargetActive = ss.leg === 'A' ? effectiveTargetA : effectiveTargetB
-    const bothComplete = ss.setCountA >= effectiveTargetA && ss.setCountB >= effectiveTargetB
+  // Last time hint
+  const lastExData = lastSets.length > 0 ? lastSets : null
 
-    const activeInitialWeight = ss.leg === 'A' ? ss.nextWeightA : ss.nextWeightB
-    const activeInitialReps = ss.leg === 'A' ? ss.nextRepsA : ss.nextRepsB
-
-    const setsForA = loggedSets.filter(s => s._exerciseId === ss.exA.exercises.id)
-    const setsForB = loggedSets.filter(s => s._exerciseId === ss.exB.exercises.id)
-
-    const ssIsAtEnd = Math.max(ss.idxA, ss.idxB) >= queue.length - 1
-
-    return (
-      <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-        {/* ── Top: progress bar + superset info ── */}
-        <div style={{ flexShrink: 0, padding: '0 16px 12px' }}>
-          <div style={{
-            paddingTop: 'calc(env(safe-area-inset-top) + 4px)',
+  return (
+    <div style={{
+      background: 'var(--bg)',
+      height: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
+      {/* Status bar */}
+      <div style={{
+        flexShrink: 0,
+        padding: '8px 18px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        background: 'var(--bg)',
+      }}>
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            background: 'var(--surface-2)',
+            border: 'none',
+            borderRadius: 999,
+            padding: '7px 13px',
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: 12,
-            marginBottom: 10,
-          }}>
-            <button
-              onClick={() => setShowQuit(true)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 22, padding: 4, minHeight: 44 }}
-            >
-              ✕
-            </button>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>
-                Exercise {ss.idxA + 1}–{ss.idxB + 1} of {queue.length}
-              </div>
-              <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%',
-                  width: `${((Math.min(ss.idxA, ss.idxB) + 1) / queue.length) * 100}%`,
-                  background: 'var(--accent)',
-                  borderRadius: 2,
-                  transition: 'width 300ms ease',
-                }} />
-              </div>
-            </div>
-
-            {/* Wake lock toggle */}
-            <button
-              onClick={toggleKeepAwake}
-              aria-label={keepAwake ? 'Screen stay-on: on' : 'Screen stay-on: off'}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, minHeight: 44, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}
-            >
-              <div style={{
-                width: 44,
-                height: 26,
-                borderRadius: 13,
-                background: keepAwake ? '#C9A84C' : 'rgba(255,255,255,0.15)',
-                position: 'relative',
-                transition: 'background 250ms ease',
-                flexShrink: 0,
-              }}>
-                <div style={{
-                  position: 'absolute',
-                  top: 3,
-                  left: keepAwake ? 21 : 3,
-                  width: 20,
-                  height: 20,
-                  borderRadius: '50%',
-                  background: '#fff',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                  transition: 'left 250ms ease',
-                }} />
-              </div>
-              <span style={{ fontSize: 9, color: keepAwake ? '#C9A84C' : 'var(--text-secondary)', fontWeight: 600, letterSpacing: 0.3, transition: 'color 250ms ease' }}>
-                AWAKE
-              </span>
-            </button>
-          </div>
-
-          {/* Superset badge */}
-          <div style={{
-            display: 'inline-block',
-            fontSize: 11,
-            fontWeight: 700,
-            color: '#C9A84C',
-            background: '#C9A84C22',
-            padding: '3px 10px',
-            borderRadius: 8,
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-            marginBottom: 6,
-          }}>
-            ⚡ Superset
-          </div>
-
-          <div className="font-display" style={{ fontSize: 36, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1, marginBottom: 4 }}>
-            {activeEx.exercises?.name}
-          </div>
-
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>
-            Next: {otherEx.exercises?.name}
-          </div>
-
-          <div style={{
-            display: 'inline-block',
-            fontSize: 11,
+            gap: 6,
+            color: 'var(--ink)',
+            fontSize: 13,
+            fontWeight: 500,
+            fontFamily: 'inherit',
+          }}
+        >
+          <Icon name="chev-down" size={14} /> Minimise
+        </button>
+        <div className="mono" style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--muted)' }}>
+          {fmtElapsed(startedAt)}
+        </div>
+        <button
+          onClick={() => setShowQuit(true)}
+          style={{
+            background: 'var(--ink)',
+            color: 'var(--bg)',
+            border: 'none',
+            borderRadius: 999,
+            padding: '7px 13px',
+            cursor: 'pointer',
+            fontSize: 13,
             fontWeight: 600,
-            color: TYPE_COLORS[activeType] || 'var(--accent)',
-            background: (TYPE_COLORS[activeType] || 'var(--accent)') + '22',
-            padding: '3px 10px',
-            borderRadius: 8,
-            textTransform: 'uppercase',
-            letterSpacing: 0.5,
-            marginBottom: 4,
-          }}>
-            {TYPE_LABELS[activeType] || activeType}
-          </div>
-        </div>
+            fontFamily: 'inherit',
+          }}
+        >
+          Finish
+        </button>
+      </div>
 
-        {/* ── Middle: set logger + completed sets (scrollable) ── */}
-        <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column', padding: '0 16px 12px', gap: 10 }}>
-
-          {bothComplete ? (
-            <>
-              <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ color: 'var(--accent)', fontSize: 18 }}>✓</span>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
-                    Superset Complete ✓
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-                    {effectiveTargetA} rounds completed
-                  </div>
-                </div>
-              </div>
+      {/* Exercise chip pager */}
+      <div className="no-scrollbar" style={{ flexShrink: 0, padding: '8px 18px 4px', overflowX: 'auto' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {queue.map((re, i) => {
+            const ex = re.exercises || {}
+            const active = i === exerciseIndex
+            const done = i < exerciseIndex
+            return (
               <button
-                className="btn-ghost"
-                onClick={() => setSupersetState(prev => ({ ...prev, bonusRounds: prev.bonusRounds + 1 }))}
-              >
-                + Add Set
-              </button>
-            </>
-          ) : (
-            <SetLogger
-              key={`ss-${ss.leg}-${activeSetCount}`}
-              setNumber={activeSetCount + 1}
-              targetSets={effectiveTargetActive}
-              exerciseType={activeType}
-              initialWeight={toDisplay(activeInitialWeight)}
-              initialReps={activeInitialReps}
-              unit={unit}
-              onComplete={handleSupersetCompleteSet}
-            />
-          )}
-
-          {/* Completed sets for both exercises */}
-          {setsForA.length > 0 && (
-            <div style={{ flexShrink: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                {ss.exA.exercises?.name} — Completed Sets
-              </div>
-              <div>
-                {setsForA.map((s, i) => (
-                  <div key={i} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 0',
-                    borderBottom: '1px solid var(--border)',
-                    fontSize: 13,
-                    color: 'var(--text-secondary)',
-                  }}>
-                    <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>✓</span>
-                    <span>Set {s.set_number}:</span>
-                    <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s, unit, toDisplay)}</span>
-                    {s.is_failure && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3, flexShrink: 0 }}>
-                      FAIL
-                    </span>
-                  )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {setsForB.length > 0 && (
-            <div style={{ flexShrink: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                {ss.exB.exercises?.name} — Completed Sets
-              </div>
-              <div>
-                {setsForB.map((s, i) => (
-                  <div key={i} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 0',
-                    borderBottom: '1px solid var(--border)',
-                    fontSize: 13,
-                    color: 'var(--text-secondary)',
-                  }}>
-                    <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>✓</span>
-                    <span>Set {s.set_number}:</span>
-                    <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s, unit, toDisplay)}</span>
-                    {s.is_failure && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3, flexShrink: 0 }}>
-                      FAIL
-                    </span>
-                  )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ── Quit confirmation ── */}
-        <BottomSheet open={showQuit} onClose={() => setShowQuit(false)}>
-          <div style={{ padding: '8px 20px 20px' }}>
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🛑</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
-                Quit workout?
-              </div>
-              <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Your progress will be lost.
-              </div>
-            </div>
-            <button
-              className="btn-destructive"
-              onClick={async () => { await cancelSession(sessionId); navigate('/') }}
-              style={{ marginBottom: 10 }}
-            >
-              Quit Workout
-            </button>
-            <button className="btn-ghost" onClick={() => setShowQuit(false)}>
-              Keep Going
-            </button>
-          </div>
-        </BottomSheet>
-
-        {/* ── Footer actions ── */}
-        <div style={{
-          padding: '12px 16px',
-          paddingBottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
-          borderTop: '1px solid var(--border)',
-          background: 'var(--bg)',
-          flexShrink: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-        }}>
-          {bothComplete && (
-            <button
-              className="btn-primary"
-              onClick={exitSuperset}
-              disabled={finishing}
-              style={{ opacity: finishing ? 0.5 : 1 }}
-            >
-              {finishing ? 'Finishing…' : ssIsAtEnd ? 'Finish Workout' : 'Continue →'}
-            </button>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // ── Normal (non-superset) render ──
-  return (
-    <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-      {/* ── Top: progress bar + exercise info ── */}
-      <div style={{ flexShrink: 0, padding: '0 16px 12px' }}>
-        <div style={{
-          paddingTop: 'calc(env(safe-area-inset-top) + 4px)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 10,
-        }}>
-          <button
-            onClick={() => setShowQuit(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 22, padding: 4, minHeight: 44 }}
-          >
-            ✕
-          </button>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 3 }}>
-              Exercise {exerciseIndex + 1} of {queue.length}
-            </div>
-            <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%',
-                width: `${((exerciseIndex + 1) / queue.length) * 100}%`,
-                background: 'var(--accent)',
-                borderRadius: 2,
-                transition: 'width 300ms ease',
-              }} />
-            </div>
-          </div>
-
-          {/* Wake lock toggle */}
-          <button
-            onClick={toggleKeepAwake}
-            aria-label={keepAwake ? 'Screen stay-on: on' : 'Screen stay-on: off'}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, minHeight: 44, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}
-          >
-            <div style={{
-              width: 44,
-              height: 26,
-              borderRadius: 13,
-              background: keepAwake ? '#C9A84C' : 'rgba(255,255,255,0.15)',
-              position: 'relative',
-              transition: 'background 250ms ease',
-              flexShrink: 0,
-            }}>
-              <div style={{
-                position: 'absolute',
-                top: 3,
-                left: keepAwake ? 21 : 3,
-                width: 20,
-                height: 20,
-                borderRadius: '50%',
-                background: '#fff',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                transition: 'left 250ms ease',
-              }} />
-            </div>
-            <span style={{ fontSize: 9, color: keepAwake ? '#C9A84C' : 'var(--text-secondary)', fontWeight: 600, letterSpacing: 0.3, transition: 'color 250ms ease' }}>
-              AWAKE
-            </span>
-          </button>
-        </div>
-
-        <div className="font-display" style={{ fontSize: 36, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1, marginBottom: 6 }}>
-          {currentExercise.exercises?.name}
-        </div>
-
-        <div style={{
-          display: 'inline-block',
-          fontSize: 11,
-          fontWeight: 600,
-          color: TYPE_COLORS[exerciseType] || 'var(--accent)',
-          background: (TYPE_COLORS[exerciseType] || 'var(--accent)') + '22',
-          padding: '3px 10px',
-          borderRadius: 8,
-          textTransform: 'uppercase',
-          letterSpacing: 0.5,
-          marginBottom: 12,
-        }}>
-          {TYPE_LABELS[exerciseType] || exerciseType}
-        </div>
-
-      </div>
-
-      {/* ── Middle: set logger + completed sets (scrollable) ── */}
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column', padding: '0 16px 12px', gap: 10 }}>
-
-        {allSetsComplete ? (
-          <>
-            <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ color: 'var(--accent)', fontSize: 18 }}>✓</span>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>All {effectiveTarget} sets complete</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Proceed to the next exercise</div>
-              </div>
-            </div>
-            <button
-              className="btn-ghost"
-              onClick={() => setBonusSets(b => b + 1)}
-            >
-              + Add Set
-            </button>
-          </>
-        ) : (
-          <SetLogger
-            key={`${exerciseIndex}-${setCount}`}
-            setNumber={setCount}
-            targetSets={effectiveTarget}
-            exerciseType={exerciseType}
-            initialWeight={toDisplay(nextSetWeight)}
-            initialReps={nextSetReps}
-            unit={unit}
-            onComplete={handleCompleteSet}
-          />
-        )}
-
-        {currentExSets.length > 0 && (
-          <div style={{ flexShrink: 0 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-              Completed Sets
-            </div>
-            <div>
-              {currentExSets.map((s, i) => (
-                <div key={i} style={{
+                key={i}
+                onClick={() => setExerciseIndex(i)}
+                style={{
+                  background: active ? 'var(--ink)' : 'var(--surface-2)',
+                  color: active ? 'var(--bg)' : done ? 'var(--muted)' : 'var(--ink)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  borderRadius: 999,
+                  padding: '6px 12px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 0',
-                  borderBottom: '1px solid var(--border)',
-                  fontSize: 13,
-                  color: 'var(--text-secondary)',
-                }}>
-                  <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>✓</span>
-                  <span>Set {s.set_number}:</span>
-                  <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s)}</span>
-                  {s.is_failure && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3, flexShrink: 0 }}>
-                      FAIL
-                    </span>
-                  )}
-                </div>
+                  gap: 5,
+                  textDecoration: done && !active ? 'line-through' : 'none',
+                  opacity: done && !active ? 0.7 : 1,
+                  fontFamily: 'inherit',
+                }}
+              >
+                {done && <Icon name="check" size={12} stroke={2.4} />}
+                {ex.name || `Exercise ${i + 1}`}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ flexShrink: 0, padding: '8px 18px 0' }}>
+        <div style={{ height: 3, borderRadius: 2, background: 'var(--surface-2)', overflow: 'hidden' }}>
+          <div style={{
+            height: '100%',
+            background: 'var(--accent)',
+            width: `${progressPct}%`,
+            transition: 'width .25s',
+          }} />
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '14px 18px 16px' }}>
+        {/* Exercise header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+          <div style={{ flex: 1 }}>
+            <div className="eyebrow">
+              Exercise {exerciseIndex + 1} of {queue.length}
+            </div>
+            <div style={{
+              fontSize: 26,
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.1,
+              marginTop: 4,
+              color: 'var(--ink)',
+            }}>
+              {currentExercise.exercises?.name}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <TypeChip type={exerciseType} />
+            </div>
+          </div>
+        </div>
+
+        {/* Last time hint */}
+        {lastExData && (
+          <div style={{
+            padding: '10px 12px',
+            borderRadius: 12,
+            background: 'var(--surface-2)',
+            marginBottom: 14,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Icon name="rotate" size={12} style={{ color: 'var(--muted)' }} />
+              <span className="eyebrow" style={{ fontSize: 10 }}>Last time</span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {lastSets.map((s, i) => (
+                <span
+                  key={i}
+                  className="mono"
+                  style={{
+                    background: 'var(--bg)',
+                    borderRadius: 6,
+                    padding: '3px 7px',
+                    fontSize: 12,
+                    color: 'var(--ink-2)',
+                  }}
+                >
+                  {isWeighted
+                    ? `${toDisplay(s.weight)} ${unit} × ${s.reps}`
+                    : exerciseType === 'cardio'
+                    ? `${s.duration_seconds || s.reps}s`
+                    : `${s.reps} reps`}
+                </span>
               ))}
             </div>
           </div>
         )}
+
+        {/* Inline set rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {inlineSets.map((s, i) => (
+            <SetRow
+              key={i}
+              idx={i + 1}
+              set={s}
+              type={exerciseType}
+              update={patch => updateInlineSet(i, patch)}
+              remove={() => removeInlineSet(i)}
+            />
+          ))}
+        </div>
+
+        <button
+          className="btn btn-ghost"
+          onClick={addInlineSet}
+          style={{ marginTop: 12 }}
+        >
+          <Icon name="plus" size={14} /> Add set
+        </button>
       </div>
 
-      {/* ── Quit confirmation ── */}
-      <BottomSheet open={showQuit} onClose={() => setShowQuit(false)}>
-        <div style={{ padding: '8px 20px 20px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 20 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🛑</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+      {/* Footer action bar */}
+      <div style={{
+        flexShrink: 0,
+        padding: '10px 18px calc(env(safe-area-inset-bottom,0px) + 14px)',
+        borderTop: '1px solid var(--border)',
+        background: 'var(--bg)',
+        display: 'flex',
+        gap: 10,
+      }}>
+        <button
+          className="btn btn-ghost"
+          disabled={exerciseIndex === 0}
+          onClick={() => setExerciseIndex(exerciseIndex - 1)}
+          style={{ flex: 1 }}
+        >
+          <Icon name="chev-l" size={14} /> Prev
+        </button>
+        {isLastExercise ? (
+          <button
+            className="btn btn-primary"
+            onClick={handleFinish}
+            disabled={finishing}
+            style={{ flex: 2 }}
+          >
+            {finishing ? 'Saving…' : 'Finish'} <Icon name="check" size={14} />
+          </button>
+        ) : (
+          <button
+            className="btn btn-primary"
+            onClick={goNextExercise}
+            style={{ flex: 2 }}
+          >
+            Next <Icon name="chev-r" size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Quit sheet */}
+      {showQuit && (
+        <BottomSheet open={showQuit} onClose={() => setShowQuit(false)}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
               Quit workout?
             </div>
-            <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>
               Your progress will be lost.
             </div>
           </div>
-          <button
-            className="btn-destructive"
-            onClick={async () => { await cancelSession(sessionId); navigate('/') }}
-            style={{ marginBottom: 10 }}
-          >
-            Quit Workout
+          <button className="btn btn-danger" onClick={handleQuit}>Quit workout</button>
+          <button className="btn btn-ghost" onClick={() => setShowQuit(false)} style={{ marginTop: 8 }}>
+            Keep going
           </button>
-          <button className="btn-ghost" onClick={() => setShowQuit(false)}>
-            Keep Going
-          </button>
-        </div>
-      </BottomSheet>
-
-      {/* ── Superset picker sheet ── */}
-      <BottomSheet
-        open={showSupersetPicker}
-        onClose={() => { setShowSupersetPicker(false); setSupersetSelections([]) }}
-        title="Choose Superset Exercises"
-      >
-        <div style={{ padding: '12px 20px' }}>
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
-            Select 2 exercises to interleave set-by-set.
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-            {queue.slice(exerciseIndex).map((ex, relIdx) => {
-              const absIdx = exerciseIndex + relIdx
-              const exType = ex.exercises?.type || 'weighted'
-              const isSelected = supersetSelections.includes(absIdx)
-              const selectionOrder = supersetSelections.indexOf(absIdx)
-              return (
-                <button
-                  key={absIdx}
-                  onClick={() => handleSupersetPickerSelect(absIdx)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '12px 14px',
-                    borderRadius: 12,
-                    border: isSelected ? '2px solid #C9A84C' : '1px solid var(--border)',
-                    background: isSelected ? '#C9A84C11' : 'var(--surface)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'border-color 150ms ease, background 150ms ease',
-                    minHeight: 52,
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {ex.exercises?.name}
-                    </div>
-                    <div style={{
-                      display: 'inline-block',
-                      fontSize: 10,
-                      fontWeight: 600,
-                      color: TYPE_COLORS[exType] || 'var(--accent)',
-                      background: (TYPE_COLORS[exType] || 'var(--accent)') + '22',
-                      padding: '2px 8px',
-                      borderRadius: 6,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.5,
-                      marginTop: 4,
-                    }}>
-                      {TYPE_LABELS[exType] || exType}
-                    </div>
-                  </div>
-                  {isSelected && (
-                    <div style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: '50%',
-                      background: '#C9A84C',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: '#000',
-                    }}>
-                      {selectionOrder === 0 ? 'A' : 'B'}
-                    </div>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-          {supersetSelections.length === 2 && (
-            <button
-              className="btn-primary"
-              onClick={startSuperset}
-            >
-              Start Superset →
-            </button>
-          )}
-        </div>
-      </BottomSheet>
-
-      {/* ── Footer actions ── */}
-      <div style={{
-        padding: '12px 16px',
-        paddingBottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
-        borderTop: '1px solid var(--border)',
-        background: 'var(--bg)',
-        flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}>
-        {isLastExercise ? (
-          <>
-            <button
-              className="btn-primary"
-              onClick={handleFinish}
-              disabled={finishing || !hasLoggedAtLeastOneSet}
-              style={{ opacity: (finishing || !hasLoggedAtLeastOneSet) ? 0.5 : 1 }}
-            >
-              {finishing ? 'Finishing…' : 'Finish Workout'}
-            </button>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn-ghost" onClick={handleFinish} style={{ flex: 1 }}>
-                Skip &amp; Finish
-              </button>
-              <button className="btn-ghost" onClick={handleDoLater} style={{ flex: 1 }}>
-                Do Later
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <button
-              className="btn-primary"
-              onClick={goNextExercise}
-              disabled={!hasLoggedAtLeastOneSet}
-              style={{ opacity: hasLoggedAtLeastOneSet ? 1 : 0.5 }}
-            >
-              Next Exercise →
-            </button>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn-ghost" onClick={goNextExercise} style={{ flex: 1 }}>
-                Skip Exercise
-              </button>
-              <button className="btn-ghost" onClick={handleDoLater} style={{ flex: 1 }}>
-                Do Later
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* ── Superset pill ── */}
-        {canStartSuperset && (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <button
-              onClick={() => setShowSupersetPicker(true)}
-              style={{
-                background: 'transparent',
-                border: '1px solid #C9A84C',
-                borderRadius: 20,
-                padding: '5px 16px',
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#C9A84C',
-                cursor: 'pointer',
-                letterSpacing: 0.3,
-                minHeight: 32,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                transition: 'background 150ms ease',
-              }}
-            >
-              Superset
-            </button>
-          </div>
-        )}
-      </div>
+        </BottomSheet>
+      )}
     </div>
   )
 }

@@ -1,24 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SlidersHorizontal } from 'lucide-react'
 import { useRoutines } from '../hooks/useRoutines'
 import { useHistory } from '../hooks/useHistory'
-import RoutineTile from '../components/RoutineTile'
 import BottomSheet from '../components/BottomSheet'
 import BottomNav from '../components/BottomNav'
 import IronLogLogo from '../components/IronLogLogo'
+import { Icon } from '../components/Icon'
 
 function toYMD(d) {
   const dt = new Date(d)
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-}
-
-function formatSessionDate(iso) {
-  const d = new Date(iso)
-  const weekday = d.toLocaleDateString('en-AU', { weekday: 'short' })
-  const day = d.getDate()
-  const month = d.toLocaleDateString('en-AU', { month: 'short' })
-  return `${weekday} ${day} ${month}`
 }
 
 function workoutsThisWeek(sessions) {
@@ -45,292 +36,335 @@ function calcStreak(sessions) {
   return streak
 }
 
+function timeAgo(iso) {
+  const days = Math.floor((Date.now() - new Date(iso)) / 86400000)
+  if (days <= 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days}d ago`
+  if (days < 30) return `${Math.floor(days / 7)}w ago`
+  return `${Math.floor(days / 30)}mo ago`
+}
+
+function Monogram({ name, size = 48 }) {
+  const letter = (name || '?').trim().charAt(0).toUpperCase()
+  return (
+    <div style={{
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.27),
+      background: 'var(--chip-bg)',
+      color: 'var(--chip-ink)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: Math.round(size * 0.42),
+      fontWeight: 600,
+      letterSpacing: '-0.02em',
+      flexShrink: 0,
+    }}>
+      {letter}
+    </div>
+  )
+}
+
+function TypeChip({ type }) {
+  const labels = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
+  return (
+    <span className="eyebrow" style={{
+      display: 'inline-block',
+      padding: '3px 8px',
+      borderRadius: 6,
+      background: 'var(--surface-2)',
+      color: 'var(--muted)',
+      letterSpacing: '0.06em',
+      fontSize: 10,
+    }}>
+      {labels[type] || type}
+    </span>
+  )
+}
+
 export default function Home() {
   const navigate = useNavigate()
-  const { routines, loading, deleteRoutine } = useRoutines()
-  const { sessions, fetchSession } = useHistory()
-  const [selectedRoutine, setSelectedRoutine] = useState(null)
-  const [deletingRoutine, setDeletingRoutine] = useState(null)
-  const [deleting, setDeleting] = useState(false)
-  const [lastSets, setLastSets] = useState(null)
-  const [showNewSheet, setShowNewSheet] = useState(false)
-
-  useEffect(() => {
-    if (!sessions.length) return
-    fetchSession(sessions[0].id).then(({ sets }) => setLastSets(sets || []))
-  }, [sessions])
-
-  const handleDelete = async () => {
-    if (!deletingRoutine) return
-    setDeleting(true)
-    await deleteRoutine(deletingRoutine.id)
-    setDeletingRoutine(null)
-    setDeleting(false)
-  }
+  const { routines, loading } = useRoutines()
+  const { sessions } = useHistory()
+  const [picked, setPicked] = useState(null)
 
   const lastSession = sessions[0] ?? null
-  const durationSecs = lastSession
-    ? Math.floor((new Date(lastSession.completed_at) - new Date(lastSession.started_at)) / 1000)
-    : 0
-  const durationFormatted = lastSession
-    ? `${String(Math.floor(durationSecs / 60)).padStart(2, '0')}:${String(durationSecs % 60).padStart(2, '0')}`
-    : '00:00'
-
   const weekCount = workoutsThisWeek(sessions)
   const streak = calcStreak(sessions)
   const totalSessions = sessions.length
 
   return (
-    <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-      {/* ── Header ── */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 16px 12px',
-        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 10px)',
-        flexShrink: 0,
-        background: 'var(--bg)',
-      }}>
-        <IronLogLogo height={30} />
-        <div className="font-display" style={{ flex: 1, textAlign: 'center', fontSize: 22, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1 }}>
-          HOME
+    <div style={{
+      background: 'var(--bg)',
+      height: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      position: 'relative',
+    }}>
+      {/* App Header */}
+      <div style={{ flexShrink: 0, padding: '10px 18px 6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', minHeight: 32 }}>
+          <IronLogLogo height={28} />
+          <div style={{ flex: 1 }} />
+          <button
+            onClick={() => navigate('/settings')}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--ink)',
+              padding: 0,
+            }}
+          >
+            <Icon name="cog" size={18} />
+          </button>
         </div>
-        <button
-          onClick={() => navigate('/settings')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, color: 'var(--accent)' }}
-        >
-          <SlidersHorizontal size={20} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+          <div style={{
+            fontSize: 32,
+            fontWeight: 600,
+            letterSpacing: '-0.025em',
+            lineHeight: 1.05,
+            color: 'var(--ink)',
+          }}>
+            Train
+          </div>
+        </div>
       </div>
 
-      {/* ── Pinned: combined last session + stats card ── */}
-      {lastSession && (
-        <button onClick={() => navigate(`/history/${lastSession.id}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: '100%', textAlign: 'left' }}>
-        <div style={{ padding: '0 16px 12px', flexShrink: 0 }}>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow)' }}>
+      {/* Scrollable content */}
+      <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '10px 18px 24px' }}>
 
-            {/* Row 1 — last session */}
-            <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
-                  Last Session
+        {/* Stats card */}
+        <div className="card" style={{ padding: '14px 16px', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div className="eyebrow">This week</div>
+            {lastSession && (
+              <button
+                onClick={() => navigate(`/history/${lastSession.id}`)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--muted)',
+                  fontSize: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  fontFamily: 'inherit',
+                }}
+              >
+                Last session <Icon name="chev-r" size={12} />
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 14 }}>
+            {[
+              { v: weekCount, l: 'sessions' },
+              { v: streak, l: streak === 1 ? 'day streak' : 'days streak' },
+              { v: totalSessions, l: 'all-time' },
+            ].map((s, i) => (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  borderLeft: i ? '1px solid var(--border)' : 'none',
+                  paddingLeft: i ? 14 : 0,
+                }}
+              >
+                <div className="mono" style={{
+                  fontSize: 30,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  letterSpacing: '-0.03em',
+                  color: 'var(--ink)',
+                }}>
+                  {s.v}
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
-                  {lastSession.routine_name}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  {formatSessionDate(lastSession.completed_at)}
-                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{s.l}</div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div className="font-display" style={{ fontSize: 30, color: 'var(--text-primary)', lineHeight: 1 }}>
-                  {durationFormatted}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>duration</div>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div style={{ height: 1, background: 'var(--border)' }} />
-
-            {/* Row 2 — stats */}
-            <div style={{ display: 'flex', padding: '12px 0' }}>
-              {[
-                { value: weekCount, label: 'This Week' },
-                { value: streak,    label: 'Day Streak' },
-                { value: totalSessions, label: 'All Time' },
-              ].map(({ value, label }, i) => (
-                <div key={label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-                  {i > 0 && (
-                    <div style={{ position: 'absolute', left: 0, top: '10%', height: '80%', width: 1, background: 'var(--border)' }} />
-                  )}
-                  <div className="font-display" style={{ fontSize: 26, color: 'var(--text-primary)', lineHeight: 1 }}>{value}</div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 3 }}>{label}</div>
-                </div>
-              ))}
-            </div>
-
+            ))}
           </div>
         </div>
-        </button>
-      )}
 
-      {/* ── Scrollable: routines ── */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <div
-          className="no-scrollbar"
-          style={{ height: '100%', overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 140px' }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
-            My Routines
-          </div>
-
-          {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
-              <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Loading…</div>
-            </div>
-          ) : routines.length === 0 ? (
-            <div style={{ textAlign: 'center', paddingTop: 60, color: 'var(--text-secondary)' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>💪</div>
-              <div className="font-display" style={{ fontSize: 28, color: 'var(--text-primary)', marginBottom: 8 }}>
-                NO ROUTINES YET
-              </div>
-              <div style={{ fontSize: 14 }}>Tap + to create your first workout routine</div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {routines.map(r => (
-                <RoutineTile
-                  key={r.id}
-                  routine={r}
-                  onClick={() => setSelectedRoutine(r)}
-                  onLongPress={() => setDeletingRoutine(r)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Fade-to-bg gradient hint */}
+        {/* Routines header */}
         <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 72,
-          background: 'linear-gradient(to bottom, transparent, var(--bg))',
-          pointerEvents: 'none',
-        }} />
-      </div>
-
-      {/* ── FAB ── */}
-      <button
-        onClick={() => setShowNewSheet(true)}
-        aria-label="New workout"
-        style={{
-          position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 100px)',
-          right: 20,
-          width: 56,
-          height: 56,
-          borderRadius: '50%',
-          background: 'var(--accent)',
-          color: '#000',
-          border: 'none',
-          fontSize: 28,
-          fontWeight: 300,
-          cursor: 'pointer',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 30,
-          transition: 'transform 200ms ease',
-        }}
-        onTouchStart={e => e.currentTarget.style.transform = 'scale(0.92)'}
-        onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
-      >
-        +
-      </button>
-
-      {/* ── New workout sheet ── */}
-      <BottomSheet open={showNewSheet} onClose={() => setShowNewSheet(false)}>
-        <div style={{ padding: '8px 20px 20px' }}>
-          <div className="font-display" style={{ fontSize: 22, color: 'var(--text-primary)', letterSpacing: 1, marginBottom: 20 }}>
-            START A WORKOUT
-          </div>
+          justifyContent: 'space-between',
+          marginBottom: 10,
+          marginTop: 6,
+        }}>
+          <div className="eyebrow">Routines</div>
           <button
-            className="btn-primary"
-            onClick={() => { setShowNewSheet(false); navigate('/routines/new') }}
-            style={{ marginBottom: 12 }}
+            onClick={() => navigate('/routines/new')}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--ink)',
+              fontSize: 12,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '4px 8px',
+              borderRadius: 8,
+              fontFamily: 'inherit',
+            }}
           >
-            Create New Routine
+            <Icon name="plus" size={14} /> New
           </button>
-          <button
-            className="btn-ghost"
-            onClick={() => { setShowNewSheet(false); navigate('/workout/freestyle') }}
-          >
-            Once-Off Workout
-          </button>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', marginTop: 10, lineHeight: 1.5 }}>
-            Once-off workouts let you pick exercises on the fly.<br />You can save the session as a routine afterwards.
-          </div>
         </div>
-      </BottomSheet>
 
-      {/* ── Routine action sheet ── */}
-      <BottomSheet open={!!selectedRoutine} onClose={() => setSelectedRoutine(null)}>
-        {selectedRoutine && (
-          <div style={{ padding: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <span style={{ fontSize: 48 }}>{selectedRoutine.emoji || '💪'}</span>
-              <div>
-                <div className="font-display" style={{ fontSize: 28, color: 'var(--text-primary)', letterSpacing: 1 }}>
-                  {selectedRoutine.name}
-                </div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-                  {selectedRoutine.routine_exercises?.length || 0} exercises
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 20 }}>
-              {(selectedRoutine.routine_exercises || []).map((re, i) => (
-                <div key={re.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                    {i + 1}
-                  </div>
-                  <div>
-                    <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 500 }}>
-                      {re.exercises?.name || 'Unknown'}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--muted)', fontSize: 14 }}>
+            Loading…
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {routines.map(r => {
+              const lastForR = sessions.find(s => s.routine_id === r.id)
+              const exCount = r.routine_exercises?.length || 0
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => setPicked(r)}
+                  className="card row-tap"
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    padding: '14px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  <Monogram name={r.name} size={48} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--ink)' }}>{r.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                      {exCount} exercise{exCount !== 1 ? 's' : ''}{lastForR ? ` · ${timeAgo(lastForR.completed_at)}` : ' · never'}
                     </div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
-                      {re.default_sets} sets × {re.default_reps} reps
-                      {re.default_weight > 0 ? ` @ ${re.default_weight}kg` : ''}
-                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-
-            <button className="btn-primary" onClick={() => { navigate(`/workout/${selectedRoutine.id}`); setSelectedRoutine(null) }} style={{ marginBottom: 10 }}>
-              Start Workout
-            </button>
-            <button className="btn-ghost" onClick={() => { navigate(`/routines/${selectedRoutine.id}/edit`); setSelectedRoutine(null) }}>
-              Edit Routine
-            </button>
-            <button
-              onClick={() => navigate('/history')}
-              style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: '12px 0 4px', color: 'var(--text-secondary)', fontFamily: 'DM Sans', fontSize: 13, cursor: 'pointer', textAlign: 'center' }}
-            >
-              View History
-            </button>
+                  <Icon name="chev-r" size={16} style={{ color: 'var(--faint)', flexShrink: 0 }} />
+                </button>
+              )
+            })}
           </div>
         )}
-      </BottomSheet>
 
-      {/* ── Delete confirmation sheet ── */}
-      <BottomSheet open={!!deletingRoutine} onClose={() => setDeletingRoutine(null)}>
-        {deletingRoutine && (
-          <div style={{ padding: '8px 20px 20px' }}>
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
-                Delete "{deletingRoutine.name}"?
-              </div>
-              <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                This will permanently delete the routine. Your workout history will not be affected.
-              </div>
-            </div>
-            <button className="btn-destructive" onClick={handleDelete} disabled={deleting} style={{ marginBottom: 10, opacity: deleting ? 0.5 : 1 }}>
-              {deleting ? 'Deleting…' : 'Delete Routine'}
-            </button>
-            <button className="btn-ghost" onClick={() => setDeletingRoutine(null)}>Cancel</button>
+        {/* Once-off workout */}
+        <button
+          onClick={() => navigate('/workout/freestyle')}
+          className="card row-tap"
+          style={{
+            width: '100%',
+            textAlign: 'left',
+            cursor: 'pointer',
+            marginTop: 8,
+            padding: '14px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <div style={{
+            width: 48,
+            height: 48,
+            borderRadius: 13,
+            background: 'var(--surface-2)',
+            color: 'var(--ink-2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <Icon name="sparkle" size={18} />
           </div>
-        )}
-      </BottomSheet>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--ink)' }}>Once-off workout</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+              Quick session, won't save as routine
+            </div>
+          </div>
+          <Icon name="chev-r" size={16} style={{ color: 'var(--faint)', flexShrink: 0 }} />
+        </button>
+      </div>
 
       <BottomNav />
+
+      {/* Routine preview sheet */}
+      {picked && (
+        <BottomSheet open={!!picked} onClose={() => setPicked(null)} title={picked?.name}>
+          <RoutinePreview
+            routine={picked}
+            onStart={() => {
+              setPicked(null)
+              navigate(`/workout/${picked.id}`)
+            }}
+            onEdit={() => {
+              setPicked(null)
+              navigate(`/routines/${picked.id}/edit`)
+            }}
+          />
+        </BottomSheet>
+      )}
+    </div>
+  )
+}
+
+function RoutinePreview({ routine, onStart, onEdit }) {
+  const exercises = routine.routine_exercises || []
+  return (
+    <div>
+      <div style={{ marginBottom: 14 }}>
+        {exercises.map((re, i) => {
+          const ex = re.exercises || {}
+          return (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '10px 0',
+                borderBottom: i === exercises.length - 1 ? 'none' : '1px solid var(--border)',
+              }}
+            >
+              <div className="mono" style={{ width: 22, color: 'var(--muted)', fontSize: 13 }}>{i + 1}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>{ex.name || 'Unknown'}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>
+                  {re.default_sets} × {re.default_reps}
+                  {re.default_weight > 0 ? ` · ${re.default_weight}kg` : ''}
+                </div>
+              </div>
+              <TypeChip type={ex.type} />
+            </div>
+          )
+        })}
+      </div>
+      <button className="btn btn-primary" onClick={onStart}>
+        <Icon name="play" size={14} /> Start workout
+      </button>
+      <button className="btn btn-ghost" onClick={onEdit} style={{ marginTop: 8 }}>
+        <Icon name="edit" size={14} /> Edit routine
+      </button>
     </div>
   )
 }

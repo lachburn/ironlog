@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWorkout } from '../hooks/useWorkout'
 import { useRoutines } from '../hooks/useRoutines'
@@ -6,29 +6,34 @@ import { useHistory } from '../hooks/useHistory'
 import SetLogger from '../components/SetLogger'
 import ExerciseSearchModal from '../components/ExerciseSearchModal'
 import BottomSheet from '../components/BottomSheet'
+import { Icon } from '../components/Icon'
 
 const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
-const TYPE_COLORS = { weighted: '#C9A84C', dumbbell: '#E2C06E', bodyweight: '#4CAF50', cardio: '#2196F3' }
-
-function formatDuration(seconds) {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}m ${s}s`
-}
 
 function formatSetDisplay(s) {
   if (s.duration_seconds) {
-    return `${formatDuration(s.duration_seconds)}${s.distance_metres ? ` · ${s.distance_metres}m` : ''}`
+    const m = Math.floor(s.duration_seconds / 60)
+    const sec = s.duration_seconds % 60
+    return `${m}m ${sec}s${s.distance_metres ? ` · ${s.distance_metres}m` : ''}`
   }
   if (!s.weight) return `${s.reps} reps`
   return `${s.weight}kg × ${s.reps}`
 }
 
-function getGraphemes(str) {
-  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
-    return [...new Intl.Segmenter().segment(str)].map(s => s.segment)
-  }
-  return Array.from(str)
+function TypeChip({ type }) {
+  return (
+    <span className="eyebrow" style={{
+      display: 'inline-block',
+      padding: '3px 8px',
+      borderRadius: 6,
+      background: 'var(--surface-2)',
+      color: 'var(--muted)',
+      letterSpacing: '0.06em',
+      fontSize: 10,
+    }}>
+      {TYPE_LABELS[type] || type}
+    </span>
+  )
 }
 
 export default function FreestyleWorkout() {
@@ -38,37 +43,32 @@ export default function FreestyleWorkout() {
   const { fetchSessions } = useHistory()
 
   const [sessionId, setSessionId] = useState(null)
-  // 'picking' | 'logging' | 'finishing'
-  const [phase, setPhase] = useState('picking')
-  const [exercises, setExercises] = useState([]) // [{id, name, type}]
+  const [phase, setPhase] = useState('picking') // 'picking' | 'logging' | 'finishing'
+  const [exercises, setExercises] = useState([])
   const [loggedSets, setLoggedSets] = useState([])
   const [lastSets, setLastSets] = useState([])
   const [nextSetWeight, setNextSetWeight] = useState(null)
   const [nextSetReps, setNextSetReps] = useState(null)
   const [setCount, setSetCount] = useState(1)
   const [showQuit, setShowQuit] = useState(false)
+  const selectingRef = useRef(false)
 
-  // Finishing state
   const [saveName, setSaveName] = useState('')
-  const [saveEmoji, setSaveEmoji] = useState('💪')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
-  // Start session on mount
   useEffect(() => {
     startSession(null, 'Once-Off Workout').then(({ session }) => {
       if (session) setSessionId(session.id)
     })
   }, []) // eslint-disable-line
 
-  // Current exercise is always the last in the list
   const currentEx = exercises[exercises.length - 1] || null
   const currentExId = currentEx?.id
   const exerciseType = currentEx?.type || 'weighted'
   const currentExSets = loggedSets.filter(s => s._exerciseId === currentExId)
   const hasAnySets = loggedSets.length > 0
 
-  // Fetch last sets for new exercise when exercises list grows
   useEffect(() => {
     if (!currentEx) return
     getLastSets(currentEx.id).then(sets => {
@@ -85,12 +85,16 @@ export default function FreestyleWorkout() {
   }, [exercises.length]) // eslint-disable-line
 
   const handleSelectExercise = (ex) => {
+    selectingRef.current = true
     setExercises(prev => [...prev, { id: ex.id, name: ex.name, type: ex.type }])
     setPhase('logging')
   }
 
   const handleModalClose = () => {
-    // If no exercises yet, ask to quit; otherwise go back to logging current exercise
+    if (selectingRef.current) {
+      selectingRef.current = false
+      return
+    }
     if (exercises.length === 0) setShowQuit(true)
     else setPhase('logging')
   }
@@ -119,8 +123,6 @@ export default function FreestyleWorkout() {
     setSetCount(c => c + 1)
   }
 
-  const handleNextExercise = () => setPhase('picking')
-
   const handleSaveOnceOff = async () => {
     if (!saveName.trim()) { setSaveError('Please enter a workout name'); return }
     setSaving(true)
@@ -133,7 +135,7 @@ export default function FreestyleWorkout() {
     if (!saveName.trim()) { setSaveError('Please enter a workout name'); return }
     setSaving(true)
     await finishSession(sessionId, saveName.trim())
-    const { data: routine } = await createRoutine({ name: saveName.trim(), emoji: saveEmoji })
+    const { data: routine } = await createRoutine({ name: saveName.trim(), emoji: '' })
     if (routine) {
       const doneExercises = exercises.filter(ex => loggedSets.some(s => s._exerciseId === ex.id))
       if (doneExercises.length > 0) {
@@ -155,10 +157,16 @@ export default function FreestyleWorkout() {
   }
 
   return (
-    <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
+    <div style={{
+      background: 'var(--bg)',
+      height: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      position: 'relative',
+    }}>
       {/* Header */}
-      <div style={{ flexShrink: 0, padding: '0 16px 12px' }}>
+      <div style={{ flexShrink: 0, padding: '8px 18px 12px' }}>
         <div style={{
           paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4px)',
           display: 'flex',
@@ -168,17 +176,31 @@ export default function FreestyleWorkout() {
         }}>
           <button
             onClick={() => setShowQuit(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 22, padding: 4, minHeight: 44 }}
+            style={{
+              background: 'var(--surface-2)',
+              border: 'none',
+              borderRadius: 999,
+              padding: '7px 13px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              color: 'var(--ink)',
+              fontSize: 13,
+              fontWeight: 500,
+              fontFamily: 'inherit',
+            }}
           >
-            ✕
+            <Icon name="x" size={14} />
           </button>
           <div style={{ flex: 1 }}>
-            <div className="font-display" style={{ fontSize: 16, color: 'var(--accent)', letterSpacing: 1 }}>
-              ONCE-OFF WORKOUT
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', letterSpacing: '-0.01em' }}>
+              Once-off workout
             </div>
             {exercises.length > 0 && (
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                Exercise {exercises.length}{currentExSets.length > 0 ? ` · ${currentExSets.length} set${currentExSets.length !== 1 ? 's' : ''}` : ''}
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                Exercise {exercises.length}
+                {currentExSets.length > 0 ? ` · ${currentExSets.length} set${currentExSets.length !== 1 ? 's' : ''}` : ''}
               </div>
             )}
           </div>
@@ -186,29 +208,30 @@ export default function FreestyleWorkout() {
 
         {phase === 'logging' && currentEx && (
           <>
-            <div className="font-display" style={{ fontSize: 36, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1, marginBottom: 6 }}>
+            <div style={{
+              fontSize: 26,
+              fontWeight: 600,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.1,
+              marginBottom: 6,
+              color: 'var(--ink)',
+            }}>
               {currentEx.name}
             </div>
-            <div style={{
-              display: 'inline-block',
-              fontSize: 11,
-              fontWeight: 600,
-              color: TYPE_COLORS[exerciseType] || 'var(--accent)',
-              background: (TYPE_COLORS[exerciseType] || 'var(--accent)') + '22',
-              padding: '3px 10px',
-              borderRadius: 8,
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-              marginBottom: 12,
-            }}>
-              {TYPE_LABELS[exerciseType] || exerciseType}
-            </div>
+            <TypeChip type={exerciseType} />
           </>
         )}
       </div>
 
       {/* Scrollable middle */}
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 12px', gap: 10, display: 'flex', flexDirection: 'column' }}>
+      <div className="no-scrollbar" style={{
+        flex: 1,
+        overflowY: 'auto',
+        padding: '0 18px 12px',
+        gap: 10,
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
         {phase === 'logging' && currentEx ? (
           <>
             <SetLogger
@@ -223,25 +246,37 @@ export default function FreestyleWorkout() {
 
             {currentExSets.length > 0 && (
               <div style={{ flexShrink: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                  Completed Sets
-                </div>
+                <div className="eyebrow" style={{ marginBottom: 6 }}>Completed sets</div>
                 {currentExSets.map((s, i) => (
-                  <div key={i} style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '6px 0', borderBottom: '1px solid var(--border)',
-                    fontSize: 13, color: 'var(--text-secondary)',
-                  }}>
-                    <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>✓</span>
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 0',
+                      borderBottom: '1px solid var(--border)',
+                      fontSize: 13,
+                      color: 'var(--muted)',
+                    }}
+                  >
+                    <Icon name="check" size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                     <span>Set {s.set_number}:</span>
-                    <span style={{ color: 'var(--text-primary)' }}>{formatSetDisplay(s)}</span>
+                    <span style={{ color: 'var(--ink)' }}>{formatSetDisplay(s)}</span>
                   </div>
                 ))}
               </div>
             )}
           </>
         ) : phase === 'picking' ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-secondary)', fontSize: 14 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: 1,
+            color: 'var(--muted)',
+            fontSize: 14,
+          }}>
             Choose an exercise to continue
           </div>
         ) : null}
@@ -250,7 +285,7 @@ export default function FreestyleWorkout() {
       {/* Footer */}
       {phase === 'logging' && (
         <div style={{
-          padding: '12px 16px',
+          padding: '12px 18px',
           paddingBottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
           borderTop: '1px solid var(--border)',
           background: 'var(--bg)',
@@ -259,19 +294,16 @@ export default function FreestyleWorkout() {
           flexDirection: 'column',
           gap: 8,
         }}>
-          <button
-            className="btn-primary"
-            onClick={handleNextExercise}
-          >
-            Next Exercise →
+          <button className="btn btn-primary" onClick={() => setPhase('picking')}>
+            Next exercise <Icon name="chev-r" size={14} />
           </button>
           <button
-            className="btn-ghost"
+            className="btn btn-ghost"
             onClick={() => setPhase('finishing')}
             disabled={!hasAnySets}
             style={{ opacity: hasAnySets ? 1 : 0.4 }}
           >
-            Finish Workout
+            Finish workout
           </button>
         </div>
       )}
@@ -284,74 +316,66 @@ export default function FreestyleWorkout() {
       />
 
       {/* Finishing / save sheet */}
-      <BottomSheet open={phase === 'finishing'} onClose={() => setPhase('logging')}>
-        <div style={{ padding: '8px 20px 20px' }}>
-          <div className="font-display" style={{ fontSize: 22, color: 'var(--text-primary)', letterSpacing: 1, marginBottom: 16 }}>
-            NAME YOUR WORKOUT
+      {phase === 'finishing' && (
+        <BottomSheet open={true} onClose={() => setPhase('logging')}>
+          <div style={{
+            fontSize: 16,
+            fontWeight: 600,
+            color: 'var(--ink)',
+            letterSpacing: '-0.01em',
+            marginBottom: 16,
+          }}>
+            Name your workout
           </div>
 
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-            <input
-              type="text"
-              value={saveEmoji}
-              onChange={e => {
-                const segs = getGraphemes(e.target.value)
-                if (segs.length > 0) setSaveEmoji(segs[segs.length - 1])
-              }}
-              style={{ width: 64, height: 56, fontSize: 30, textAlign: 'center', padding: 0, borderRadius: 12, flexShrink: 0 }}
-            />
-            <input
-              type="text"
-              placeholder="Workout name"
-              value={saveName}
-              onChange={e => { setSaveName(e.target.value); setSaveError('') }}
-              autoFocus
-              style={{ flex: 1 }}
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Workout name"
+            value={saveName}
+            onChange={e => { setSaveName(e.target.value); setSaveError('') }}
+            autoFocus
+            style={{ marginBottom: 16 }}
+          />
 
           {saveError && (
-            <div style={{ color: 'var(--destructive)', fontSize: 13, marginBottom: 12 }}>{saveError}</div>
+            <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{saveError}</div>
           )}
 
           <button
-            className="btn-primary"
+            className="btn btn-primary"
             onClick={handleSaveAsRoutine}
             disabled={saving}
-            style={{ marginBottom: 10, opacity: saving ? 0.5 : 1 }}
+            style={{ marginBottom: 8, opacity: saving ? 0.5 : 1 }}
           >
-            {saving ? 'Saving…' : 'Save as Routine'}
+            {saving ? 'Saving…' : 'Save as routine'}
           </button>
           <button
-            className="btn-ghost"
+            className="btn btn-ghost"
             onClick={handleSaveOnceOff}
             disabled={saving}
           >
-            Save as Once-Off
+            Save as once-off
           </button>
-        </div>
-      </BottomSheet>
+        </BottomSheet>
+      )}
 
       {/* Quit confirmation */}
-      <BottomSheet open={showQuit} onClose={() => setShowQuit(false)}>
-        <div style={{ padding: '8px 20px 20px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 20 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🛑</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+      {showQuit && (
+        <BottomSheet open={showQuit} onClose={() => setShowQuit(false)}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
               Quit workout?
             </div>
-            <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>
               Your progress will be lost.
             </div>
           </div>
-          <button className="btn-destructive" onClick={handleQuit} style={{ marginBottom: 10 }}>
-            Quit Workout
+          <button className="btn btn-danger" onClick={handleQuit}>Quit workout</button>
+          <button className="btn btn-ghost" onClick={() => setShowQuit(false)} style={{ marginTop: 8 }}>
+            Keep going
           </button>
-          <button className="btn-ghost" onClick={() => setShowQuit(false)}>
-            Keep Going
-          </button>
-        </div>
-      </BottomSheet>
+        </BottomSheet>
+      )}
     </div>
   )
 }

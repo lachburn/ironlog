@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { useWeightUnit } from '../context/WeightUnitContext'
+import { Icon } from '../components/Icon'
 
 export default function Settings() {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
-  const { theme, toggleTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const { unit: weightUnit, setUnit: handleWeightUnit } = useWeightUnit()
   const [signingOut, setSigningOut] = useState(false)
 
@@ -16,119 +17,195 @@ export default function Settings() {
     await signOut()
   }
 
-  const Row = ({ label, children }) => (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '16px 0',
-      borderBottom: '1px solid var(--border)',
-      minHeight: 56,
-    }}>
-      <div style={{ color: 'var(--text-primary)', fontSize: 15, fontWeight: 500 }}>{label}</div>
-      {children}
-    </div>
-  )
+  const initial = (user?.email || 'A').charAt(0).toUpperCase()
 
-  const SegmentedControl = ({ value, options, onChange }) => (
-    <div style={{
-      display: 'flex',
-      background: 'var(--bg)',
-      border: '1px solid var(--border)',
-      borderRadius: 10,
-      padding: 2,
-      gap: 2,
-    }}>
-      {options.map(opt => (
-        <button
-          key={opt.value}
-          onClick={() => onChange(opt.value)}
-          style={{
-            padding: '6px 14px',
-            borderRadius: 8,
-            border: 'none',
-            cursor: 'pointer',
-            fontFamily: 'DM Sans',
-            fontSize: 13,
-            fontWeight: 600,
-            transition: 'all 200ms ease',
-            background: value === opt.value ? 'var(--accent)' : 'transparent',
-            color: value === opt.value ? '#000' : 'var(--text-secondary)',
-            minHeight: 34,
-          }}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  )
+  const THEMES = [
+    { id: 'light',  label: 'Light',  icon: 'sun',     bg: 'oklch(98.4% 0.005 80)',  iconColor: 'oklch(38% 0.012 60)' },
+    { id: 'dark',   label: 'Dark',   icon: 'moon',    bg: 'oklch(15% 0.008 250)',   iconColor: 'oklch(96% 0.005 250)' },
+    { id: 'tilly',  label: 'Tilly',  icon: 'sparkle', bg: 'oklch(99.2% 0.006 20)',  iconColor: 'oklch(42% 0.04 350)' },
+  ]
 
   return (
-    <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{
+      background: 'var(--bg)',
+      height: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
       {/* Header */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '56px 16px 16px',
-        paddingTop: 'max(56px, calc(env(safe-area-inset-top) + 16px))',
-        borderBottom: '1px solid var(--border)',
         flexShrink: 0,
+        padding: '8px 18px 8px',
+        background: 'var(--bg)',
       }}>
-        <button
-          onClick={() => navigate('/')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: 'var(--accent)', padding: '4px 8px', minHeight: 44 }}
-        >
-          ←
-        </button>
-        <div className="font-display" style={{ fontSize: 26, color: 'var(--text-primary)', letterSpacing: 1 }}>
-          SETTINGS
+        <div style={{ display: 'flex', alignItems: 'center', minHeight: 44, gap: 10 }}>
+          <button
+            onClick={() => navigate('/')}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--ink)',
+              padding: 0,
+            }}
+          >
+            <Icon name="chev-l" size={18} />
+          </button>
+          <div style={{
+            flex: 1,
+            textAlign: 'center',
+            fontWeight: 600,
+            fontSize: 15,
+            letterSpacing: '-0.01em',
+          }}>
+            Settings
+          </div>
+          <div style={{ width: 36 }} />
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 16px 40px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.8, padding: '20px 0 4px' }}>
-          Preferences
+      <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '0 18px 40px' }}>
+
+        {/* Avatar + user info */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0 20px' }}>
+          <div style={{
+            width: 56,
+            height: 56,
+            borderRadius: 999,
+            background: 'var(--accent)',
+            color: 'var(--accent-ink)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 20,
+            fontWeight: 600,
+            flexShrink: 0,
+          }}>
+            {initial}
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--ink)' }}>
+              {user?.email || 'Athlete'}
+            </div>
+          </div>
         </div>
 
-        <Row label="Theme">
-          <SegmentedControl
-            value={theme}
-            options={[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }]}
-            onChange={toggleTheme}
-          />
-        </Row>
-
-        <Row label="Weight Unit">
-          <SegmentedControl
-            value={weightUnit}
-            options={[{ value: 'kg', label: 'kg' }, { value: 'lbs', label: 'lbs' }]}
-            onChange={handleWeightUnit}
-          />
-        </Row>
-
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.8, padding: '20px 0 4px' }}>
-          Account
+        {/* Appearance */}
+        <div className="eyebrow" style={{ padding: '8px 4px 6px' }}>Appearance</div>
+        <div className="card" style={{ padding: 6, marginBottom: 18 }}>
+          {THEMES.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTheme(t.id)}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                background: theme === t.id ? 'var(--surface-2)' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '12px 12px',
+                borderRadius: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                color: 'var(--ink)',
+                transition: 'background .15s ease',
+              }}
+            >
+              <div style={{
+                width: 32,
+                height: 32,
+                borderRadius: 10,
+                background: t.bg,
+                border: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: t.iconColor,
+                flexShrink: 0,
+              }}>
+                <Icon name={t.icon} size={14} />
+              </div>
+              <div style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{t.label}</div>
+              {theme === t.id && (
+                <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />
+              )}
+            </button>
+          ))}
         </div>
 
-        <Row label="Email">
-          <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{user?.email}</div>
-        </Row>
+        {/* Units */}
+        <div className="eyebrow" style={{ padding: '8px 4px 6px' }}>Units</div>
+        <div className="card" style={{ padding: 6, marginBottom: 18 }}>
+          {[
+            { value: 'kg', label: 'Kilograms (kg)' },
+            { value: 'lbs', label: 'Pounds (lb)' },
+          ].map(u => (
+            <button
+              key={u.value}
+              onClick={() => handleWeightUnit(u.value)}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                background: weightUnit === u.value ? 'var(--surface-2)' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '12px 12px',
+                borderRadius: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                color: 'var(--ink)',
+                transition: 'background .15s ease',
+              }}
+            >
+              <div style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{u.label}</div>
+              {weightUnit === u.value && (
+                <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />
+              )}
+            </button>
+          ))}
+        </div>
 
-        <div style={{ marginTop: 24 }}>
+        {/* Account */}
+        <div className="eyebrow" style={{ padding: '8px 4px 6px' }}>Account</div>
+        <div className="card" style={{ padding: 6 }}>
           <button
-            className="btn-destructive"
             onClick={handleSignOut}
             disabled={signingOut}
+            style={{
+              width: '100%',
+              textAlign: 'left',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '12px 12px',
+              borderRadius: 10,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              color: 'var(--danger)',
+              fontSize: 14,
+              fontWeight: 500,
+              opacity: signingOut ? 0.5 : 1,
+              transition: 'opacity .15s ease',
+              fontFamily: 'inherit',
+            }}
           >
-            {signingOut ? 'Signing out…' : 'Sign Out'}
+            <Icon name="log-out" size={16} />
+            {signingOut ? 'Signing out…' : 'Sign out'}
           </button>
         </div>
 
-        <div style={{ textAlign: 'center', paddingTop: 32, color: 'var(--text-secondary)', fontSize: 12 }}>
-          <div className="font-display" style={{ fontSize: 20, color: 'var(--accent)', marginBottom: 4 }}>IRONLOG</div>
-          Track every rep. Own every session.
-          <div style={{ marginTop: 8, fontSize: 11, opacity: 0.6 }}>v0.2.4</div>
+        <div style={{ textAlign: 'center', marginTop: 26, color: 'var(--faint)', fontSize: 11 }}>
+          ironlog · v2.1
         </div>
       </div>
     </div>

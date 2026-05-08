@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useHistory } from '../hooks/useHistory'
 import { useWeightUnit } from '../context/WeightUnitContext'
 import BottomSheet from '../components/BottomSheet'
+import { Icon } from '../components/Icon'
 
 function formatDate(ts) {
   return new Date(ts).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -33,49 +34,39 @@ function groupByExercise(sets) {
   return Array.from(map.values())
 }
 
-function TrashIcon() {
+function TypeChip({ type }) {
+  const labels = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-    </svg>
+    <span className="eyebrow" style={{
+      display: 'inline-block',
+      padding: '3px 8px',
+      borderRadius: 6,
+      background: 'var(--surface-2)',
+      color: 'var(--muted)',
+      letterSpacing: '0.06em',
+      fontSize: 10,
+    }}>
+      {labels[type] || type}
+    </span>
   )
 }
 
 export default function SessionDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { fetchSession, deleteWorkout, fetchExerciseDetail } = useHistory()
+  const { fetchSession, deleteWorkout } = useHistory()
   const { unit, toDisplay } = useWeightUnit()
   const [session, setSession] = useState(null)
   const [exercises, setExercises] = useState([])
-  const [exercisePRs, setExercisePRs] = useState({})
   const [loading, setLoading] = useState(true)
   const [showDeleteSheet, setShowDeleteSheet] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    fetchSession(id).then(async ({ session: s, sets }) => {
+    fetchSession(id).then(({ session: s, sets }) => {
       setSession(s)
-      const grouped = groupByExercise(sets)
-      setExercises(grouped)
+      setExercises(groupByExercise(sets || []))
       setLoading(false)
-
-      // Fetch PR data for each exercise
-      const prs = {}
-      for (const ex of grouped) {
-        if (!ex.exercise_id) continue
-        const { sets: allSets } = await fetchExerciseDetail(ex.exercise_id)
-        if (!allSets || allSets.length === 0) continue
-        if (ex.type === 'bodyweight') {
-          prs[ex.exercise_id] = Math.max(...allSets.map(s => s.reps || 0))
-        } else if (ex.type === 'weighted' || ex.type === 'dumbbell') {
-          prs[ex.exercise_id] = Math.max(...allSets.map(s => s.weight || 0))
-        }
-      }
-      setExercisePRs(prs)
     })
   }, [id]) // eslint-disable-line
 
@@ -88,210 +79,182 @@ export default function SessionDetail() {
   if (loading || !session) {
     return (
       <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Loading…</div>
+        <div style={{ color: 'var(--muted)', fontSize: 14 }}>Loading…</div>
       </div>
     )
   }
 
   const duration = formatDuration(session.started_at, session.completed_at)
+  const totalSets = exercises.reduce((a, e) => a + e.sets.length, 0)
+  const totalVol = exercises.reduce((a, e) =>
+    a + e.sets.reduce((x, st) => x + (st.weight || 0) * (st.reps || 0), 0), 0)
 
   return (
-    <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{
+      background: 'var(--bg)',
+      height: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      position: 'relative',
+    }}>
       {/* Header */}
-      <div style={{
-        padding: '56px 16px 16px',
-        paddingTop: 'max(56px, calc(env(safe-area-inset-top) + 16px))',
-        borderBottom: '1px solid var(--border)',
-        flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <div style={{ flexShrink: 0, padding: '8px 18px 8px', background: 'var(--bg)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', minHeight: 44, gap: 10 }}>
           <button
             onClick={() => navigate(-1)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: 'var(--accent)', padding: '4px 8px', minHeight: 44, marginTop: -4 }}
-          >
-            ←
-          </button>
-          <div style={{ flex: 1 }}>
-            <div className="font-display" style={{ fontSize: 24, color: 'var(--text-primary)', letterSpacing: 1 }}>
-              {session.routine_name || 'Workout'}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              {formatDate(session.started_at)}
-            </div>
-          </div>
-          {/* Duration */}
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div className="font-display" style={{ fontSize: 32, color: 'var(--accent)', letterSpacing: 1, lineHeight: 1 }}>
-              {duration}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>duration</div>
-          </div>
-          {/* Delete button */}
-          <button
-            onClick={() => setShowDeleteSheet(true)}
-            aria-label="Delete workout"
             style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text-secondary)',
-              padding: 8,
-              minWidth: 44,
-              minHeight: 44,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 10,
-              opacity: 0.7,
+              background: 'none', border: 'none', cursor: 'pointer',
+              width: 36, height: 36, borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--ink)', padding: 0,
             }}
           >
-            <TrashIcon />
+            <Icon name="chev-l" size={18} />
+          </button>
+          <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, fontSize: 15, letterSpacing: '-0.01em' }}>
+            {session.routine_name || 'Once-off'}
+          </div>
+          <button
+            onClick={() => setShowDeleteSheet(true)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              width: 36, height: 36, borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--danger)', padding: 0,
+            }}
+          >
+            <Icon name="trash" size={16} />
           </button>
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '16px 16px 40px' }}>
+      <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '0 18px 24px' }}>
+        {/* Stats card */}
+        <div className="card" style={{ padding: '14px 16px', marginBottom: 14 }}>
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
+            {formatDate(session.completed_at || session.started_at)}
+          </div>
+          <div style={{ display: 'flex', gap: 14 }}>
+            {[
+              { v: exercises.length, l: 'exercises' },
+              { v: totalSets, l: 'sets' },
+              { v: duration, l: 'duration' },
+              { v: totalVol > 0 ? `${Math.round(totalVol).toLocaleString()}` : '—', l: `${unit} total` },
+            ].map((x, i) => (
+              <div key={i} style={{ flex: 1 }}>
+                <div className="mono" style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+                  {x.v}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{x.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {exercises.length === 0 ? (
-          <div style={{ color: 'var(--text-secondary)', textAlign: 'center', paddingTop: 40, fontSize: 14 }}>
+          <div style={{ color: 'var(--muted)', textAlign: 'center', paddingTop: 40, fontSize: 14 }}>
             No sets logged for this session.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {exercises.map((ex, i) => (
-              <button
-                key={i}
-                onClick={() => ex.exercise_id && navigate(`/exercise-history/${ex.exercise_id}`)}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  textAlign: 'left',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 16,
-                  padding: 16,
-                  cursor: ex.exercise_id ? 'pointer' : 'default',
-                  boxShadow: 'var(--shadow)',
-                  transition: 'border-color 200ms ease',
-                }}
-              >
-                {/* Exercise header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-primary)' }}>
+          exercises.map((ex, i) => {
+            const isW = ex.type === 'weighted' || ex.type === 'dumbbell'
+            const isCardio = ex.type === 'cardio'
+            return (
+              <div key={i} className="card" style={{ padding: '14px 16px', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <button
+                    onClick={() => ex.exercise_id && navigate(`/exercise-history/${ex.exercise_id}`)}
+                    style={{
+                      flex: 1,
+                      textAlign: 'left',
+                      background: 'none',
+                      border: 'none',
+                      cursor: ex.exercise_id ? 'pointer' : 'default',
+                      padding: 0,
+                      fontWeight: 600,
+                      fontSize: 15,
+                      color: 'var(--ink)',
+                      fontFamily: 'inherit',
+                    }}
+                  >
                     {ex.name}
-                  </div>
-                  {ex.exercise_id && (
-                    <div style={{ color: 'var(--accent)', fontSize: 13, fontWeight: 500 }}>
-                      History ›
-                    </div>
-                  )}
+                  </button>
+                  <TypeChip type={ex.type} />
                 </div>
-
-                {/* Sets table */}
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: 'left', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Set</th>
-                      {ex.type === 'cardio' ? (
-                        <>
-                          <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Duration</th>
-                          <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Distance</th>
-                        </>
-                      ) : ex.type === 'bodyweight' ? (
-                        <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Reps</th>
-                      ) : (
-                        <>
-                          <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Weight</th>
-                          <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Reps</th>
-                        </>
-                      )}
-                      <th style={{ width: 90, textAlign: 'right' }} />
-                      <th style={{ width: 40 }} />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ex.sets.map((s, j) => {
-                      const isPR =
-                        (ex.type === 'bodyweight'
-                          ? s.reps != null && exercisePRs[ex.exercise_id] != null && s.reps >= exercisePRs[ex.exercise_id]
-                          : (ex.type === 'weighted' || ex.type === 'dumbbell')
-                            ? s.weight != null && exercisePRs[ex.exercise_id] != null && s.weight >= exercisePRs[ex.exercise_id]
-                            : false)
-                      return (
-                      <tr key={j}>
-                        <td style={{ padding: '5px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{s.set_number}</td>
-                        {ex.type === 'cardio' ? (
-                          <>
-                            <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, color: 'var(--text-primary)' }}>
-                              {s.duration_seconds
-                                ? `${Math.floor(s.duration_seconds / 60)}:${String(s.duration_seconds % 60).padStart(2, '0')}`
-                                : '—'}
-                            </td>
-                            <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, color: 'var(--text-primary)' }}>
-                              {s.distance_metres ? `${s.distance_metres}m` : '—'}
-                            </td>
-                          </>
-                        ) : ex.type === 'bodyweight' ? (
-                          <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{s.reps}</td>
-                        ) : (
-                          <>
-                            <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, color: 'var(--text-primary)' }}>{toDisplay(s.weight)}{unit}</td>
-                            <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{s.reps}</td>
-                          </>
-                        )}
-                        <td style={{ textAlign: 'right', padding: '5px 0 5px 4px', fontSize: 13, minWidth: 90 }}>
-                          {s.is_failure && (
-                            <span style={{ fontSize: 10, fontWeight: 700, color: '#4CAF50', background: 'rgba(76,175,80,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3 }}>
-                              TO FAILURE
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'right', padding: '5px 0 5px 4px' }}>
-                          {isPR && (
-                            <span style={{ fontSize: 10, fontWeight: 700, color: '#C9A84C', background: 'rgba(201,168,76,0.15)', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.3 }}>
-                              PR
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </button>
-            ))}
-          </div>
+                {ex.sets.map((st, si) => (
+                  <div
+                    key={si}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '24px 1fr 1fr',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '8px 0',
+                      borderTop: si === 0 ? 'none' : '1px solid var(--border)',
+                    }}
+                  >
+                    <div className="mono" style={{ color: 'var(--muted)', fontSize: 12 }}>{si + 1}</div>
+                    {isW && (
+                      <>
+                        <div className="mono" style={{ fontSize: 14, color: 'var(--ink)' }}>
+                          {toDisplay(st.weight)} <span style={{ color: 'var(--muted)', fontSize: 11 }}>{unit}</span>
+                        </div>
+                        <div className="mono" style={{ fontSize: 14, color: 'var(--ink)' }}>
+                          {st.reps} <span style={{ color: 'var(--muted)', fontSize: 11 }}>reps</span>
+                        </div>
+                      </>
+                    )}
+                    {ex.type === 'bodyweight' && (
+                      <div className="mono" style={{ fontSize: 14, gridColumn: 'span 2', color: 'var(--ink)' }}>
+                        {st.reps} <span style={{ color: 'var(--muted)', fontSize: 11 }}>reps</span>
+                      </div>
+                    )}
+                    {isCardio && (
+                      <div className="mono" style={{ fontSize: 14, gridColumn: 'span 2', color: 'var(--ink)' }}>
+                        {st.duration_seconds
+                          ? `${Math.floor(st.duration_seconds / 60)}:${String(st.duration_seconds % 60).padStart(2, '0')}`
+                          : '—'}
+                        {' '}<span style={{ color: 'var(--muted)', fontSize: 11 }}>dur</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          })
         )}
       </div>
 
-      {/* Delete confirmation sheet */}
-      <BottomSheet open={showDeleteSheet} onClose={() => !deleting && setShowDeleteSheet(false)}>
-        <div style={{ padding: '8px 20px 20px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 20 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+      {/* Delete sheet */}
+      {showDeleteSheet && (
+        <BottomSheet open={showDeleteSheet} onClose={() => !deleting && setShowDeleteSheet(false)}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
               Delete this workout?
             </div>
-            <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>
               <strong>{session.routine_name}</strong> on {formatDate(session.started_at)}.
               {' '}This cannot be undone.
             </div>
           </div>
           <button
-            className="btn-destructive"
+            className="btn btn-danger"
             onClick={handleDelete}
             disabled={deleting}
-            style={{ marginBottom: 10, opacity: deleting ? 0.5 : 1 }}
           >
-            {deleting ? 'Deleting…' : 'Delete Workout'}
+            {deleting ? 'Deleting…' : 'Delete workout'}
           </button>
           <button
-            className="btn-ghost"
+            className="btn btn-ghost"
             onClick={() => setShowDeleteSheet(false)}
             disabled={deleting}
+            style={{ marginTop: 8 }}
           >
             Cancel
           </button>
-        </div>
-      </BottomSheet>
+        </BottomSheet>
+      )}
     </div>
   )
 }

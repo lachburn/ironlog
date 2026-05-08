@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SlidersHorizontal } from 'lucide-react'
 import { useHistory } from '../hooks/useHistory'
 import { useWeightUnit } from '../context/WeightUnitContext'
 import BottomNav from '../components/BottomNav'
 import IronLogLogo from '../components/IronLogLogo'
+import { Icon } from '../components/Icon'
 
 const SORTS = [
-  { key: 'recent',    label: 'Most Recent' },
-  { key: 'completed', label: 'Most Completed' },
+  { key: 'recent',    label: 'Recent' },
+  { key: 'completed', label: 'Most Done' },
   { key: 'heaviest',  label: 'Heaviest' },
   { key: 'az',        label: 'A → Z' },
 ]
@@ -32,6 +32,39 @@ function timeAgo(iso) {
   return `${Math.floor(days / 30)}mo ago`
 }
 
+function Empty({ query }) {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '80px 20px',
+      textAlign: 'center',
+      color: 'var(--muted)',
+    }}>
+      <div style={{
+        width: 56,
+        height: 56,
+        borderRadius: 18,
+        background: 'var(--surface-2)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 14,
+      }}>
+        <Icon name={query ? 'search' : 'chart'} size={24} />
+      </div>
+      <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--ink)', marginBottom: 4 }}>
+        {query ? 'Nothing found' : 'No data yet'}
+      </div>
+      <div style={{ fontSize: 13, maxWidth: 240 }}>
+        {query ? 'Try a different search' : 'Complete a workout to see exercise history'}
+      </div>
+    </div>
+  )
+}
+
 export default function ExerciseHistory() {
   const navigate = useNavigate()
   const { fetchExerciseHistory, exHistCacheExists } = useHistory()
@@ -49,64 +82,111 @@ export default function ExerciseHistory() {
   }, [fetchExerciseHistory])
 
   const filtered = sortExercises(
-    exercises.filter(e =>
-      e.exercise_name.toLowerCase().includes(query.toLowerCase())
-    ),
+    exercises.filter(e => e.exercise_name.toLowerCase().includes(query.toLowerCase())),
     sort
   )
 
+  // Group by first letter for alphabetical mode
+  const groups = {}
+  if (sort === 'az') {
+    filtered.forEach(e => {
+      const k = e.exercise_name[0].toUpperCase()
+      ;(groups[k] = groups[k] || []).push(e)
+    })
+  }
+  const groupKeys = Object.keys(groups).sort()
+
   return (
-    <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
+    <div style={{
+      background: 'var(--bg)',
+      height: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
+      {/* App Header */}
       <div style={{ flexShrink: 0 }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 16px 12px',
-          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 10px)',
-          background: 'var(--bg)',
-        }}>
-          <IronLogLogo height={30} />
-          <div className="font-display" style={{ flex: 1, textAlign: 'center', fontSize: 22, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1 }}>
-            EXERCISES
+        <div style={{ padding: '10px 18px 6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', minHeight: 32 }}>
+            <IronLogLogo height={28} />
+            <div style={{ flex: 1 }} />
+            <button
+              onClick={() => navigate('/settings')}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                width: 36, height: 36, borderRadius: 10,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--ink)', padding: 0,
+              }}
+            >
+              <Icon name="cog" size={18} />
+            </button>
           </div>
-          <button
-            onClick={() => navigate('/settings')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, color: 'var(--accent)' }}
-          >
-            <SlidersHorizontal size={20} />
-          </button>
+          <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.025em', lineHeight: 1.05, marginTop: 6 }}>
+            Exercises
+          </div>
         </div>
 
-        <div style={{ padding: '0 16px 12px' }}>
-          {/* Search */}
-          <input
-            type="text"
-            placeholder="Search exercises…"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            style={{ marginBottom: 12 }}
-          />
+        {/* Search + sort */}
+        <div style={{ padding: '0 18px 10px' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'var(--surface-2)',
+              borderRadius: 12,
+              padding: '0 12px',
+              border: '1px solid var(--border)',
+            }}>
+              <Icon name="search" size={16} style={{ color: 'var(--muted)', flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Search exercises"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '11px 0',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--ink)',
+                  fontSize: 14,
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  width: 'auto',
+                  borderRadius: 0,
+                }}
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 0 }}
+                >
+                  <Icon name="x" size={14} />
+                </button>
+              )}
+            </div>
+          </div>
 
-          {/* Sort pills */}
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
+          <div className="no-scrollbar" style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
             {SORTS.map(s => (
               <button
                 key={s.key}
                 onClick={() => setSort(s.key)}
                 style={{
-                  flexShrink: 0,
-                  padding: '6px 14px',
-                  borderRadius: 20,
-                  border: `1px solid ${sort === s.key ? 'var(--accent)' : 'var(--border)'}`,
-                  background: sort === s.key ? 'var(--accent)' : 'transparent',
-                  color: sort === s.key ? '#000' : 'var(--text-secondary)',
-                  fontFamily: 'DM Sans',
+                  padding: '5px 11px',
+                  borderRadius: 999,
+                  background: sort === s.key ? 'var(--ink)' : 'transparent',
+                  color: sort === s.key ? 'var(--bg)' : 'var(--muted)',
+                  border: sort === s.key ? 'none' : '1px solid var(--border)',
                   fontSize: 12,
-                  fontWeight: 600,
+                  fontWeight: 500,
                   cursor: 'pointer',
-                  transition: 'all 200ms ease',
-                  minHeight: 34,
+                  whiteSpace: 'nowrap',
+                  fontFamily: 'inherit',
+                  flexShrink: 0,
                 }}
               >
                 {s.label}
@@ -116,65 +196,84 @@ export default function ExerciseHistory() {
         </div>
       </div>
 
-      {/* List */}
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '8px 16px 100px' }}>
+      <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '0 18px 24px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', paddingTop: 40, color: 'var(--text-secondary)', fontSize: 14 }}>Loading…</div>
+          <div style={{ textAlign: 'center', paddingTop: 40, color: 'var(--muted)', fontSize: 14 }}>Loading…</div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', paddingTop: 60 }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
-            <div className="font-display" style={{ fontSize: 24, color: 'var(--text-primary)', marginBottom: 8 }}>
-              {query ? 'NO RESULTS' : 'NO DATA YET'}
-            </div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-              {query ? 'Try a different search' : 'Complete a workout to see exercise history'}
-            </div>
-          </div>
-        ) : (
-          filtered.map(ex => (
-            <button
-              key={ex.exercise_id}
-              onClick={() => navigate(`/exercise-history/${ex.exercise_id}`)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14,
-                padding: '14px 0',
-                borderBottom: '1px solid var(--border)',
-                background: 'none',
-                border: 'none',
-                borderBottom: '1px solid var(--border)',
-                cursor: 'pointer',
-                width: '100%',
-                textAlign: 'left',
-                minHeight: 68,
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  color: 'var(--text-primary)',
-                  fontWeight: 600,
-                  fontSize: 15,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}>
-                  {ex.exercise_name}
-                </div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 2 }}>
-                  {ex.total_sets} sets
-                  {ex.heaviest_weight > 0 && ` · ${toDisplay(ex.heaviest_weight)}${unit} best`}
-                  {` · ${timeAgo(ex.last_done)}`}
-                </div>
+          <Empty query={query} />
+        ) : sort === 'az' ? (
+          groupKeys.map(k => (
+            <div key={k} style={{ marginBottom: 14 }}>
+              <div className="eyebrow" style={{ padding: '8px 4px 6px' }}>{k}</div>
+              <div style={{
+                background: 'var(--surface)',
+                borderRadius: 14,
+                border: '1px solid var(--border)',
+                overflow: 'hidden',
+              }}>
+                {groups[k].map((ex, i) => (
+                  <ExerciseRow
+                    key={ex.exercise_id}
+                    ex={ex}
+                    i={i}
+                    total={groups[k].length}
+                    unit={unit}
+                    toDisplay={toDisplay}
+                    navigate={navigate}
+                  />
+                ))}
               </div>
-
-              <div style={{ color: 'var(--text-secondary)', fontSize: 20, flexShrink: 0 }}>›</div>
-            </button>
+            </div>
           ))
+        ) : (
+          <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden' }}>
+            {filtered.map((ex, i) => (
+              <ExerciseRow
+                key={ex.exercise_id}
+                ex={ex}
+                i={i}
+                total={filtered.length}
+                unit={unit}
+                toDisplay={toDisplay}
+                navigate={navigate}
+              />
+            ))}
+          </div>
         )}
       </div>
 
       <BottomNav />
     </div>
+  )
+}
+
+function ExerciseRow({ ex, i, total, unit, toDisplay, navigate }) {
+  return (
+    <button
+      onClick={() => navigate(`/exercise-history/${ex.exercise_id}`)}
+      style={{
+        width: '100%',
+        textAlign: 'left',
+        cursor: 'pointer',
+        background: 'transparent',
+        border: 'none',
+        padding: '12px 14px',
+        borderTop: i === 0 ? 'none' : '1px solid var(--border)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        fontFamily: 'inherit',
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>{ex.exercise_name}</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+          {ex.total_sets} sets
+          {ex.heaviest_weight > 0 && ` · ${toDisplay(ex.heaviest_weight)}${unit} best`}
+          {ex.last_done ? ` · ${timeAgo(ex.last_done)}` : ''}
+        </div>
+      </div>
+      <Icon name="chev-r" size={14} style={{ color: 'var(--faint)', flexShrink: 0 }} />
+    </button>
   )
 }

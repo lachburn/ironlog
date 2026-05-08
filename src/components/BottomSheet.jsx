@@ -5,12 +5,6 @@ export default function BottomSheet({ open, onClose, children, title }) {
   const startY = useRef(0)
   const dragY = useRef(0)
 
-  useEffect(() => {
-    if (open) document.body.style.overflow = 'hidden'
-    else document.body.style.overflow = ''
-    return () => { document.body.style.overflow = '' }
-  }, [open])
-
   if (!open) return null
 
   const onDragStart = (e) => {
@@ -42,62 +36,71 @@ export default function BottomSheet({ open, onClose, children, title }) {
   }
 
   return (
-    <>
-      <div className="backdrop" onClick={onClose} style={{ zIndex: 105 }} />
+    <div style={{
+      position: 'absolute',
+      inset: 0,
+      zIndex: 80,
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(0,0,0,0.45)',
+          animation: 'fadeIn .18s ease',
+        }}
+      />
+
+      {/* Spacer pushes sheet to bottom */}
+      <div style={{ flex: 1 }} />
+
+      {/* Panel */}
       <div
         ref={sheetRef}
         style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
+          position: 'relative',
           background: 'var(--surface)',
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
-          border: '1px solid var(--border)',
-          borderBottom: 'none',
-          zIndex: 110,
-          maxHeight: '85dvh',
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'sheetUp 250ms ease',
-          paddingBottom: 'env(safe-area-inset-bottom, 16px)',
+          padding: '14px 18px calc(env(safe-area-inset-bottom,0px) + 22px)',
+          boxShadow: '0 -8px 30px rgba(0,0,0,.18)',
+          animation: 'slideUp .22s ease',
+          maxHeight: '85%',
+          overflowY: 'auto',
           willChange: 'transform',
         }}
       >
-        <style>{`
-          @keyframes sheetUp {
-            from { transform: translateY(100%); }
-            to   { transform: translateY(0); }
-          }
-        `}</style>
-
-        {/* Drag handle — enlarged touch target for swipe-to-dismiss */}
+        {/* Drag handle */}
         <div
           onTouchStart={onDragStart}
           onTouchMove={onDragMove}
           onTouchEnd={onDragEnd}
-          style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 10px', cursor: 'grab' }}
+          style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, cursor: 'grab' }}
         >
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)' }} />
+          <div style={{
+            width: 36,
+            height: 4,
+            borderRadius: 2,
+            background: 'var(--border-2)',
+          }} />
         </div>
 
         {title && (
           <div style={{
-            padding: '0 20px 16px',
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: 600,
-            color: 'var(--text-primary)',
-            borderBottom: '1px solid var(--border)',
+            marginBottom: 14,
+            letterSpacing: '-0.01em',
           }}>
             {title}
           </div>
         )}
 
-        <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', flex: 1 }}>
-          {children}
-        </div>
+        {children}
       </div>
-    </>
+    </div>
   )
 }

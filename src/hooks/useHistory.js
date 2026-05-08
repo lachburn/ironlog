@@ -12,6 +12,7 @@ export function useHistory() {
 
   const fetchSessions = useCallback(async () => {
     if (!user) return
+    _exHistCache = null
     if (_sessionsCache === null) setLoading(true)
     const { data } = await supabase
       .from('workout_sessions')
@@ -151,7 +152,7 @@ export function useHistory() {
     }
 
     const sessionData = Array.from(sessionGroups.values())
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
 
     return { sessions: sessionData, sets }
   }, [user])

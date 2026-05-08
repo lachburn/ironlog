@@ -75,8 +75,8 @@ export default function LineChart({ data, color = 'var(--accent)' }) {
           x={PAD.left - 6} y={scaleY(v) + 4}
           textAnchor="end"
           fontSize="10"
-          fill="var(--text-secondary)"
-          fontFamily="DM Sans"
+          fill="var(--muted)"
+          fontFamily="'Inter Tight', system-ui, sans-serif"
         >
           {Number.isInteger(v) ? v : v.toFixed(1)}
         </text>
@@ -89,8 +89,8 @@ export default function LineChart({ data, color = 'var(--accent)' }) {
           x={scaleX(i)} y={H - 4}
           textAnchor="middle"
           fontSize="10"
-          fill="var(--text-secondary)"
-          fontFamily="DM Sans"
+          fill="var(--muted)"
+          fontFamily="'Inter Tight', system-ui, sans-serif"
         >
           {fmtDate(data[i].x)}
         </text>

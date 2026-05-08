@@ -20,8 +20,8 @@ export function WeightUnitProvider({ children }) {
 
   const toDisplay = (kg) => {
     if (kg == null) return null
-    if (unit === 'lbs') return Math.round(kg * 2.20462 * 4) / 4
-    return kg
+    if (unit === 'lbs') return Math.round(kg * 2.20462)
+    return Math.round(kg)
   }
 
   const toKg = (val) => {

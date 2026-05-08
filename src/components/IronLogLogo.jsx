@@ -14,7 +14,7 @@ export default function IronLogLogo({ height = 44 }) {
         display: 'block',
         objectFit: 'contain',
         borderRadius: radius,
-        boxShadow: theme === 'light' ? '0 2px 8px rgba(0,0,0,0.18)' : 'none',
+        boxShadow: theme === 'light' || theme === 'tilly' ? '0 2px 8px rgba(0,0,0,0.18)' : 'none',
       }}
     />
   )

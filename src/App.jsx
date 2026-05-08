@@ -17,7 +17,7 @@ function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return (
     <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ color: 'var(--accent)', fontFamily: 'Bebas Neue', fontSize: 32 }}>IRONLOG</div>
+      <div style={{ color: 'var(--accent)', fontFamily: "'Inter Tight', sans-serif", fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em' }}>ironlog</div>
     </div>
   )
   return user ? children : <Navigate to="/auth" replace />

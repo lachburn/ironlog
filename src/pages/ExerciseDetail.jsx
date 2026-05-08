@@ -3,9 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useHistory } from '../hooks/useHistory'
 import { useWeightUnit } from '../context/WeightUnitContext'
 import LineChart from '../components/LineChart'
-
-const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
-const TYPE_COLORS = { weighted: '#C9A84C', dumbbell: '#E2C06E', bodyweight: '#4CAF50', cardio: '#2196F3' }
+import { Icon } from '../components/Icon'
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' })
@@ -17,10 +15,56 @@ function formatDuration(secs) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+function timeAgo(iso) {
+  const days = Math.floor((Date.now() - new Date(iso)) / 86400000)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days}d ago`
+  if (days < 30) return `${Math.floor(days / 7)}w ago`
+  return `${Math.floor(days / 30)}mo ago`
+}
+
+const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
+
+function TypeChip({ type }) {
+  return (
+    <span className="eyebrow" style={{
+      display: 'inline-block',
+      padding: '3px 8px',
+      borderRadius: 6,
+      background: 'var(--surface-2)',
+      color: 'var(--muted)',
+      letterSpacing: '0.06em',
+      fontSize: 10,
+    }}>
+      {TYPE_LABELS[type] || type}
+    </span>
+  )
+}
+
+function PRCard({ l, v, sub }) {
+  return (
+    <div className="card" style={{ padding: '10px 12px' }}>
+      <div className="eyebrow">{l}</div>
+      <div className="mono" style={{
+        fontSize: 22,
+        fontWeight: 600,
+        letterSpacing: '-0.02em',
+        marginTop: 4,
+        color: 'var(--ink)',
+      }}>
+        {v}
+      </div>
+      {sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{sub}</div>}
+    </div>
+  )
+}
+
 export default function ExerciseDetail() {
   const { exerciseId } = useParams()
   const navigate = useNavigate()
   const { fetchExerciseDetail } = useHistory()
+  const { unit, toDisplay } = useWeightUnit()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -34,31 +78,45 @@ export default function ExerciseDetail() {
   if (loading || !data) {
     return (
       <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Loading…</div>
+        <div style={{ color: 'var(--muted)', fontSize: 14 }}>Loading…</div>
       </div>
     )
   }
 
-  const { unit, toDisplay } = useWeightUnit()
-
   const { sessions, sets } = data
   const exerciseName = sets[0]?.exercise_name || 'Exercise'
   const exerciseType = sets[0]?.exercise_type || 'weighted'
-  const accentColor = TYPE_COLORS[exerciseType] || 'var(--accent)'
   const isCardio = exerciseType === 'cardio'
   const isBodyweight = exerciseType === 'bodyweight'
+  const isW = exerciseType === 'weighted' || exerciseType === 'dumbbell'
+
+  // PRs
+  let prWeight = 0, prReps = 0, prVol = 0, pr1RM = 0, prDuration = 0
+  sets.forEach(s => {
+    if (isW) {
+      prWeight = Math.max(prWeight, s.weight || 0)
+      prReps = Math.max(prReps, s.reps || 0)
+      const v = (s.weight || 0) * (s.reps || 0)
+      prVol = Math.max(prVol, v)
+      const e1 = (s.weight || 0) * (1 + (s.reps || 0) / 30)
+      pr1RM = Math.max(pr1RM, e1)
+    } else if (isCardio) {
+      prDuration = Math.max(prDuration, s.duration_seconds || 0)
+    } else {
+      prReps = Math.max(prReps, s.reps || 0)
+    }
+  })
 
   // Build chart data — max weight per session
   const chartData = sessions
-    .filter(s => isCardio ? s.sets.some(x => x.duration_seconds) : s.max_weight > 0)
+    .filter(s => isCardio ? s.sets?.some(x => x.duration_seconds) : s.max_weight > 0)
     .map(s => ({
       x: s.date,
       y: isCardio
-        ? (s.sets.reduce((acc, x) => acc + (x.duration_seconds || 0), 0) / s.sets.length)
+        ? (s.sets?.reduce((acc, x) => acc + (x.duration_seconds || 0), 0) / (s.sets?.length || 1))
         : toDisplay(s.max_weight),
     }))
 
-  // Overall stats
   const totalSets = sets.length
   const setsWithReps = sets.filter(s => s.reps != null && s.reps > 0)
   const avgReps = setsWithReps.length > 0
@@ -68,171 +126,144 @@ export default function ExerciseDetail() {
   const totalSessions = sessions.length
 
   return (
-    <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{
+      background: 'var(--bg)',
+      height: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
       {/* Header */}
-      <div style={{
-        padding: '56px 16px 16px',
-        paddingTop: 'max(56px, calc(env(safe-area-inset-top) + 16px))',
-        borderBottom: '1px solid var(--border)',
-        flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
+      <div style={{ flexShrink: 0, padding: '8px 18px 8px', background: 'var(--bg)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', minHeight: 44, gap: 10 }}>
           <button
             onClick={() => navigate(-1)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: 'var(--accent)', padding: '4px 8px', minHeight: 44, marginTop: -4 }}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              width: 36, height: 36, borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--ink)', padding: 0,
+            }}
           >
-            ←
+            <Icon name="chev-l" size={18} />
           </button>
-          <div style={{ flex: 1 }}>
-            <div className="font-display" style={{ fontSize: 28, color: 'var(--text-primary)', letterSpacing: 1, lineHeight: 1.1 }}>
-              {exerciseName.toUpperCase()}
-            </div>
-            <div style={{
-              display: 'inline-block',
-              marginTop: 6,
-              fontSize: 11,
-              fontWeight: 600,
-              color: accentColor,
-              background: accentColor + '22',
-              padding: '3px 10px',
-              borderRadius: 8,
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-            }}>
-              {TYPE_LABELS[exerciseType] || exerciseType}
-            </div>
+          <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, fontSize: 15, letterSpacing: '-0.01em' }}>
+            {exerciseName}
           </div>
+          <div style={{ width: 36 }} />
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '16px 16px 40px' }}>
+      <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '0 18px 24px' }}>
+        {/* Exercise name + type */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--ink)' }}>
+            {exerciseName}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <TypeChip type={exerciseType} />
+          </div>
+        </div>
 
-        {/* Stats row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
-          {[
-            { label: 'Sessions', value: totalSessions },
-            { label: 'Total Sets', value: totalSets },
-            avgReps != null
-              ? { label: 'Avg Reps', value: avgReps }
-              : heaviest > 0
-              ? { label: 'Best', value: `${toDisplay(heaviest)}${unit}` }
-              : { label: 'Sets', value: totalSets },
-          ].map((stat, i) => (
-            <div key={i} className="card" style={{ padding: '12px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'Bebas Neue', letterSpacing: 1 }}>
-                {stat.value}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{stat.label}</div>
-            </div>
-          ))}
+        {/* PRs */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+          {isW && [
+            { l: 'Heaviest', v: `${toDisplay(prWeight)} ${unit}`, sub: '' },
+            { l: 'Top set 1RM', v: `${toDisplay(Math.round(pr1RM))} ${unit}`, sub: 'estimated' },
+            { l: 'Best volume', v: `${toDisplay(Math.round(prVol))} ${unit}`, sub: 'single set' },
+            { l: 'Most reps', v: `${prReps}`, sub: '' },
+          ].map((p, i) => <PRCard key={i} {...p} />)}
+          {isBodyweight && [
+            { l: 'Best reps', v: `${prReps}`, sub: 'single set' },
+            { l: 'Sessions', v: `${totalSessions}`, sub: '' },
+          ].map((p, i) => <PRCard key={i} {...p} />)}
+          {isCardio && [
+            { l: 'Longest', v: `${prDuration}s`, sub: '' },
+            { l: 'Sessions', v: `${totalSessions}`, sub: '' },
+          ].map((p, i) => <PRCard key={i} {...p} />)}
         </div>
 
         {/* Chart */}
         {chartData.length > 1 && (
-          <div className="card" style={{ padding: '16px 12px 8px', marginBottom: 20 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 }}>
-              {isCardio ? 'Avg Duration per Session' : isBodyweight ? 'Reps over Time' : 'Weight over Time'}
+          <div className="card" style={{ padding: 14, marginBottom: 14 }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 6,
+            }}>
+              <div className="eyebrow">
+                {isW ? 'Estimated 1RM' : isCardio ? 'Longest set' : 'Best reps'}
+              </div>
+              <div className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>
+                {chartData.length} session{chartData.length !== 1 ? 's' : ''}
+              </div>
             </div>
-            <LineChart data={chartData} color={accentColor} />
-            {!isCardio && !isBodyweight && (
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'right', marginTop: 4 }}>{unit}</div>
-            )}
+            <LineChart data={chartData} color="var(--accent)" />
           </div>
         )}
 
-        {/* Sessions breakdown */}
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 }}>
-          All Sessions
-        </div>
-
-        {sessions.map((session, si) => {
-          const sessionAvgReps = session.set_count > 0
-            ? (session.total_reps / session.set_count).toFixed(1)
-            : null
-
-          return (
-            <div key={session.session_id} className="card" style={{ padding: 16, marginBottom: 12 }}>
-              {/* Session header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
+        {/* History */}
+        <div className="eyebrow" style={{ padding: '4px 4px 8px' }}>History</div>
+        {sessions.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontSize: 13 }}>
+            No history yet
+          </div>
+        ) : (
+          sessions.map((session, i) => {
+            const sessionSets = session.sets || []
+            return (
+              <button
+                key={i}
+                onClick={() => navigate(`/history/${session.session_id}`)}
+                className="card row-tap"
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  padding: '12px 14px',
+                  marginBottom: 8,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 6,
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>
                     {formatDate(session.date)}
                   </div>
-                  {session.routine_name && (
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-                      {session.routine_name}
-                    </div>
-                  )}
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{timeAgo(session.date)}</div>
                 </div>
-                {sessionAvgReps && (
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: accentColor }}>{sessionAvgReps}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>avg reps</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Sets table */}
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'left', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Set</th>
-                    {isCardio ? (
-                      <>
-                        <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Duration</th>
-                        <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Distance</th>
-                      </>
-                    ) : isBodyweight ? (
-                      <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Reps</th>
-                    ) : (
-                      <>
-                        <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Weight</th>
-                        <th style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, paddingBottom: 6 }}>Reps</th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {session.sets.map((s, j) => (
-                    <tr key={j}>
-                      <td style={{ padding: '5px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{s.set_number}</td>
-                      {isCardio ? (
-                        <>
-                          <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, color: 'var(--text-primary)' }}>
-                            {s.duration_seconds ? formatDuration(s.duration_seconds) : '—'}
-                          </td>
-                          <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, color: 'var(--text-primary)' }}>
-                            {s.distance_metres ? `${s.distance_metres}m` : '—'}
-                          </td>
-                        </>
-                      ) : isBodyweight ? (
-                        <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{s.reps}</td>
-                      ) : (
-                        <>
-                          <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, color: 'var(--text-primary)' }}>{toDisplay(s.weight)}{unit}</td>
-                          <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{s.reps}</td>
-                        </>
-                      )}
-                    </tr>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {sessionSets.map((s, j) => (
+                    <span
+                      key={j}
+                      className="mono"
+                      style={{
+                        background: 'var(--surface-2)',
+                        borderRadius: 6,
+                        padding: '3px 7px',
+                        fontSize: 12,
+                        color: 'var(--ink-2)',
+                      }}
+                    >
+                      {isW
+                        ? `${toDisplay(s.weight)} ${unit} × ${s.reps}`
+                        : isCardio
+                        ? (s.duration_seconds ? formatDuration(s.duration_seconds) : `${s.reps}s`)
+                        : `${s.reps} reps`}
+                    </span>
                   ))}
-                </tbody>
-                {/* Session avg reps footer */}
-                {!isCardio && session.set_count > 1 && sessionAvgReps && (
-                  <tfoot>
-                    <tr>
-                      <td colSpan={isBodyweight ? 1 : 2} style={{ paddingTop: 8, fontSize: 12, color: 'var(--text-secondary)', borderTop: '1px solid var(--border)' }}>
-                        Average
-                      </td>
-                      <td style={{ textAlign: 'right', paddingTop: 8, fontSize: 12, fontWeight: 600, color: accentColor, borderTop: '1px solid var(--border)' }}>
-                        {sessionAvgReps} reps
-                      </td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
-          )
-        })}
+                </div>
+              </button>
+            )
+          })
+        )}
       </div>
     </div>
   )
