@@ -39,7 +39,7 @@ export default function BottomNav() {
       flexShrink: 0,
       borderTop: '1px solid var(--border)',
       background: 'var(--bg)',
-      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
+      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 18px)',
       display: 'flex',
     }}>
       {TABS.map(t => {

@@ -22,7 +22,7 @@ export default function Settings() {
   const THEMES = [
     { id: 'light',  label: 'Light',  icon: 'sun',     bg: 'oklch(98.4% 0.005 80)',  iconColor: 'oklch(38% 0.012 60)' },
     { id: 'dark',   label: 'Dark',   icon: 'moon',    bg: 'oklch(15% 0.008 250)',   iconColor: 'oklch(96% 0.005 250)' },
-    { id: 'tilly',  label: 'Tilly',  icon: 'sparkle', bg: 'oklch(99.2% 0.006 20)',  iconColor: 'oklch(42% 0.04 350)' },
+    { id: 'tilly',  label: 'Tilly',  icon: 'sparkle', bg: 'oklch(93% 0.055 350)',   iconColor: 'oklch(62% 0.28 350)' },
   ]
 
   return (
@@ -205,7 +205,7 @@ export default function Settings() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 26, color: 'var(--faint)', fontSize: 11 }}>
-          ironlog · v2.5
+          ironlog · v2.9
         </div>
       </div>
     </div>

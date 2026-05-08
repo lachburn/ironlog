@@ -117,7 +117,6 @@ export default function ExerciseSearchModal({ open, onClose, onSelect, excludeId
                 placeholder="Search exercises…"
                 value={query}
                 onChange={e => handleSearch(e.target.value)}
-                autoFocus
                 style={{
                   flex: 1,
                   padding: '11px 0',

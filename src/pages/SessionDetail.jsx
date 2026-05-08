@@ -188,7 +188,7 @@ export default function SessionDetail() {
                     key={si}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '24px 1fr 1fr auto',
+                      gridTemplateColumns: '24px 1fr 1fr 80px',
                       alignItems: 'center',
                       gap: 12,
                       padding: '8px 0',
@@ -214,9 +214,8 @@ export default function SessionDetail() {
                     {isCardio && (
                       <div className="mono" style={{ fontSize: 14, gridColumn: '2 / 4', color: 'var(--ink)' }}>
                         {st.duration_seconds
-                          ? `${Math.floor(st.duration_seconds / 60)}:${String(st.duration_seconds % 60).padStart(2, '0')}`
-                          : '—'}
-                        {' '}<span style={{ color: 'var(--muted)', fontSize: 11 }}>dur</span>
+                          ? <>{st.duration_seconds} <span style={{ color: 'var(--muted)', fontSize: 11 }}>secs</span></>
+                          : <span style={{ color: 'var(--muted)' }}>—</span>}
                       </div>
                     )}
                     <div>

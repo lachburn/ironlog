@@ -91,15 +91,11 @@ export default function ExerciseDetail() {
   const isW = exerciseType === 'weighted' || exerciseType === 'dumbbell'
 
   // PRs
-  let prWeight = 0, prReps = 0, prVol = 0, pr1RM = 0, prDuration = 0
+  let prWeight = 0, prReps = 0, prDuration = 0
   sets.forEach(s => {
     if (isW) {
       prWeight = Math.max(prWeight, s.weight || 0)
       prReps = Math.max(prReps, s.reps || 0)
-      const v = (s.weight || 0) * (s.reps || 0)
-      prVol = Math.max(prVol, v)
-      const e1 = (s.weight || 0) * (1 + (s.reps || 0) / 30)
-      pr1RM = Math.max(pr1RM, e1)
     } else if (isCardio) {
       prDuration = Math.max(prDuration, s.duration_seconds || 0)
     } else {
@@ -169,8 +165,6 @@ export default function ExerciseDetail() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
           {isW && [
             { l: 'Heaviest', v: `${toDisplay(prWeight)} ${unit}`, sub: '' },
-            { l: 'Top set 1RM', v: `${toDisplay(Math.round(pr1RM))} ${unit}`, sub: 'estimated' },
-            { l: 'Best volume', v: `${toDisplay(Math.round(prVol))} ${unit}`, sub: 'single set' },
             { l: 'Most reps', v: `${prReps}`, sub: '' },
           ].map((p, i) => <PRCard key={i} {...p} />)}
           {isBodyweight && [

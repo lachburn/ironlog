@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useRoutines } from '../hooks/useRoutines'
 import { useWorkout } from '../hooks/useWorkout'
@@ -7,25 +7,12 @@ import { useActiveWorkout } from '../context/ActiveWorkoutContext'
 import BottomSheet from '../components/BottomSheet'
 import { Icon } from '../components/Icon'
 
+const SETS_KEY = 'ironlog-exercise-sets'
 const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
-
-function formatDuration(seconds) {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}m ${s}s`
-}
 
 function fmtElapsed(startIso) {
   const s = Math.floor((Date.now() - new Date(startIso)) / 1000)
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-}
-
-function formatSetDisplay(s, unit = 'kg', toDisplay = v => v) {
-  if (s.duration_seconds) {
-    return `${formatDuration(s.duration_seconds)}${s.distance_metres ? ` · ${s.distance_metres}m` : ''}`
-  }
-  if (!s.weight) return `${s.reps} reps`
-  return `${toDisplay(s.weight)}${unit} × ${s.reps}`
 }
 
 function TypeChip({ type }) {
@@ -44,7 +31,6 @@ function TypeChip({ type }) {
   )
 }
 
-// Inline set row with editable fields
 function SetRow({ idx, set, type, update, remove }) {
   const isWeighted = type === 'weighted' || type === 'dumbbell'
   const isCardio = type === 'cardio'
@@ -54,12 +40,11 @@ function SetRow({ idx, set, type, update, remove }) {
       alignItems: 'center',
       gap: 10,
       background: set.done ? 'var(--surface-2)' : 'var(--surface)',
-      border: `1px solid ${set.done ? 'var(--border)' : 'var(--border)'}`,
+      border: '1px solid var(--border)',
       borderRadius: 14,
       padding: '10px 12px',
       transition: 'background .15s',
     }}>
-      {/* Set number badge */}
       <div className="mono" style={{
         width: 28, height: 28, borderRadius: 8,
         background: set.done ? 'var(--accent)' : 'var(--bg-deep)',
@@ -84,7 +69,6 @@ function SetRow({ idx, set, type, update, remove }) {
         <FieldInline label="sec" value={set.duration || set.reps} onChange={v => update({ duration: v, reps: v })} wide />
       )}
 
-      {/* Done toggle */}
       <button
         onClick={() => update({ done: !set.done })}
         aria-label="Toggle set"
@@ -102,7 +86,6 @@ function SetRow({ idx, set, type, update, remove }) {
         <Icon name="check" size={16} stroke={2.4} />
       </button>
 
-      {/* Remove */}
       <button
         onClick={remove}
         aria-label="Remove set"
@@ -154,7 +137,7 @@ export default function ActiveWorkout() {
   const { routines } = useRoutines()
   const { startSession, finishSession, cancelSession, logSet, getLastSets, saveProgress, getProgress } = useWorkout()
   const { unit, toDisplay, toKg } = useWeightUnit()
-  const { setActiveWorkout, clearActiveWorkout } = useActiveWorkout()
+  const { activeWorkout, setActiveWorkout, clearActiveWorkout } = useActiveWorkout()
 
   const routine = routines.find(r => r.id === id)
   const exercises = routine?.routine_exercises || []
@@ -162,20 +145,16 @@ export default function ActiveWorkout() {
   const [sessionId, setSessionId] = useState(null)
   const [exerciseIndex, setExerciseIndex] = useState(0)
   const [exerciseQueue, setExerciseQueue] = useState(null)
-  const [loggedSets, setLoggedSets] = useState([])
+  // Per-exercise sets map: { [exerciseId]: [{weight, reps, done}] }
+  const [allExerciseSets, setAllExerciseSets] = useState({})
   const [lastSets, setLastSets] = useState([])
-  const [nextSetWeight, setNextSetWeight] = useState(null)
-  const [nextSetReps, setNextSetReps] = useState(null)
-  const [setCount, setSetCount] = useState(1)
-  const [bonusSets, setBonusSets] = useState(0)
   const [finishing, setFinishing] = useState(false)
   const [initialized, setInitialized] = useState(false)
-  const [showQuit, setShowQuit] = useState(false)
-  const [startedAt] = useState(() => new Date().toISOString())
-  const [now, setNow] = useState(Date.now())
+  const [showFinishEarly, setShowFinishEarly] = useState(false)
+  const [, setNow] = useState(Date.now())
 
-  // Inline set logging state (new design uses inline rows instead of SetLogger)
-  const [inlineSets, setInlineSets] = useState([])
+  // Restore startedAt from context so timer survives minimize/return
+  const [startedAt] = useState(() => activeWorkout?.startedAt ?? new Date().toISOString())
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
@@ -192,7 +171,9 @@ export default function ActiveWorkout() {
   const currentExercise = queue[exerciseIndex]
   const exerciseType = currentExercise?.exercises?.type || 'weighted'
   const isWeighted = exerciseType === 'weighted' || exerciseType === 'dumbbell'
+  const currentExId = currentExercise?.exercises?.id
 
+  // Initialize or resume session
   useEffect(() => {
     if (initialized || !routine) return
     setInitialized(true)
@@ -202,6 +183,14 @@ export default function ActiveWorkout() {
       setSessionId(resume.sessionId)
       setExerciseIndex(resume.exerciseIndex || 0)
       setActiveWorkout({ routineId: routine.id, routineName: routine.name, startedAt })
+      // Restore exercise sets if they belong to this session
+      try {
+        const raw = localStorage.getItem(SETS_KEY)
+        if (raw) {
+          const { sessionId: savedId, sets } = JSON.parse(raw)
+          if (savedId === resume.sessionId) setAllExerciseSets(sets)
+        }
+      } catch {}
     } else {
       startSession(routine.id, routine.name).then(({ session }) => {
         if (session) {
@@ -213,125 +202,118 @@ export default function ActiveWorkout() {
     }
   }, [routine, initialized]) // eslint-disable-line
 
+  // Persist exercise sets whenever they change
   useEffect(() => {
-    if (!currentExercise) return
-    const exId = currentExercise.exercises?.id
-    if (!exId) return
+    if (!sessionId || Object.keys(allExerciseSets).length === 0) return
+    localStorage.setItem(SETS_KEY, JSON.stringify({ sessionId, sets: allExerciseSets }))
+  }, [sessionId, allExerciseSets])
 
-    getLastSets(exId).then(sets => {
-      setLastSets(sets)
-      if (sets.length > 0) {
-        setNextSetWeight(sets[0].weight)
-        setNextSetReps(sets[0].reps)
-      } else {
-        setNextSetWeight(currentExercise.default_weight || null)
-        setNextSetReps(currentExercise.default_reps || null)
+  // Initialize sets for current exercise if not already present
+  useEffect(() => {
+    if (!currentExercise || !currentExId) return
+
+    setAllExerciseSets(prev => {
+      if (prev[currentExId] && prev[currentExId].length > 0) return prev
+      const defaultSets = currentExercise.default_sets || 3
+      return {
+        ...prev,
+        [currentExId]: Array.from({ length: defaultSets }).map(() => ({
+          weight: currentExercise.default_weight || '',
+          reps: currentExercise.default_reps || '',
+          done: false,
+        })),
       }
     })
-    setSetCount(1)
-    setBonusSets(0)
 
-    // Build initial inline set rows from defaults
-    const defaultSets = currentExercise.default_sets || 3
-    setInlineSets(
-      Array.from({ length: defaultSets }).map(() => ({
-        weight: currentExercise.default_weight || '',
-        reps: currentExercise.default_reps || '',
-        done: false,
-      }))
-    )
-  }, [exerciseIndex, currentExercise]) // eslint-disable-line
+    getLastSets(currentExId).then(sets => setLastSets(sets))
+  }, [exerciseIndex, currentExId]) // eslint-disable-line
 
-  // Update inline sets with last session data when it arrives
+  // Prefill with last session data (only if no set has been ticked yet)
   useEffect(() => {
-    if (!lastSets.length) return
-    setInlineSets(prev => prev.map((s, i) => {
-      const last = lastSets[i] || lastSets[lastSets.length - 1]
-      return {
-        ...s,
-        weight: s.done ? s.weight : (last?.weight ?? s.weight),
-        reps: s.done ? s.reps : (last?.reps ?? s.reps),
-      }
-    }))
+    if (!lastSets.length || !currentExId) return
+    setAllExerciseSets(prev => {
+      const existing = prev[currentExId] || []
+      if (existing.some(s => s.done)) return prev
+      const updated = existing.map((s, i) => {
+        const last = lastSets[i] || lastSets[lastSets.length - 1]
+        return { ...s, weight: last?.weight ?? s.weight, reps: last?.reps ?? s.reps }
+      })
+      return { ...prev, [currentExId]: updated }
+    })
   }, [lastSets]) // eslint-disable-line
 
-  const currentExId = currentExercise?.exercises?.id
-  const currentExSets = loggedSets.filter(s => s._exerciseId === currentExId)
-  const targetSets = currentExercise?.default_sets || null
-  const effectiveTarget = (targetSets || 0) + bonusSets
-  const isLastExercise = exerciseIndex >= queue.length - 1
-  const hasLoggedAtLeastOneSet = currentExSets.length > 0 || inlineSets.some(s => s.done)
+  const inlineSets = currentExId ? (allExerciseSets[currentExId] || []) : []
 
-  const doneSetsCount = inlineSets.filter(s => s.done).length
-  const totalSetsCount = inlineSets.length
-
-  const updateInlineSet = (i, patch) => {
-    setInlineSets(prev => prev.map((s, si) => si !== i ? s : { ...s, ...patch }))
+  const setInlineSets = (updater) => {
+    if (!currentExId) return
+    setAllExerciseSets(prev => ({
+      ...prev,
+      [currentExId]: typeof updater === 'function' ? updater(prev[currentExId] || []) : updater,
+    }))
   }
 
+  const updateInlineSet = (i, patch) => setInlineSets(prev => prev.map((s, si) => si !== i ? s : { ...s, ...patch }))
   const addInlineSet = () => {
     const last = inlineSets[inlineSets.length - 1] || { weight: '', reps: '', done: false }
     setInlineSets(prev => [...prev, { weight: last.weight, reps: last.reps, done: false }])
   }
+  const removeInlineSet = (i) => setInlineSets(prev => prev.filter((_, si) => si !== i))
 
-  const removeInlineSet = (i) => {
-    setInlineSets(prev => prev.filter((_, si) => si !== i))
-  }
-
-  const handleLogDoneSets = async () => {
-    if (!sessionId) return
-    const doneSets = inlineSets.filter(s => s.done)
-    for (let i = 0; i < doneSets.length; i++) {
-      const s = doneSets[i]
-      const weightInKg = s.weight != null && s.weight !== '' ? toKg(parseFloat(s.weight) || 0) : null
-      const set = {
-        session_id: sessionId,
-        exercise_id: currentExId,
-        exercise_name: currentExercise.exercises?.name,
-        exercise_type: exerciseType,
-        set_number: i + 1,
-        weight: weightInKg,
-        reps: parseInt(s.reps) || 0,
-        duration_seconds: null,
-        distance_metres: null,
-      }
-      const { data } = await logSet(set)
-      const withMeta = { ...set, ...data, _exerciseId: currentExId }
-      setLoggedSets(prev => [...prev, withMeta])
-    }
-  }
-
-  const goNextExercise = async () => {
-    await handleLogDoneSets()
+  const goNextExercise = () => {
     const nextIdx = exerciseIndex + 1
     setExerciseIndex(nextIdx)
     saveProgress(sessionId, nextIdx)
-    setBonusSets(0)
   }
 
-  const handleDoLater = () => {
-    setExerciseQueue(prev => {
-      const q = [...(prev || exercises)]
-      const [moved] = q.splice(exerciseIndex, 1)
-      q.push(moved)
-      return q
-    })
-    setBonusSets(0)
+  const clearWorkoutData = () => {
+    localStorage.removeItem(SETS_KEY)
+    clearActiveWorkout()
   }
 
+  // Log all done sets across all exercises and finish
   const handleFinish = async () => {
     if (!sessionId) return
     setFinishing(true)
-    await handleLogDoneSets()
+    for (const [exId, sets] of Object.entries(allExerciseSets)) {
+      const re = queue.find(r => r.exercises?.id === exId)
+      if (!re) continue
+      const exName = re.exercises?.name
+      const exType = re.exercises?.type || 'weighted'
+      const doneSets = sets.filter(s => s.done)
+      for (let i = 0; i < doneSets.length; i++) {
+        const s = doneSets[i]
+        const weightInKg = s.weight != null && s.weight !== '' ? toKg(parseFloat(s.weight) || 0) : null
+        await logSet({
+          session_id: sessionId,
+          exercise_id: exId,
+          exercise_name: exName,
+          exercise_type: exType,
+          set_number: i + 1,
+          weight: weightInKg,
+          reps: parseInt(s.reps) || 0,
+          duration_seconds: exType === 'cardio' ? (parseInt(s.reps) || 0) : null,
+          distance_metres: null,
+        })
+      }
+    }
     await finishSession(sessionId)
-    clearActiveWorkout()
+    clearWorkoutData()
     navigate(`/history/${sessionId}`, { replace: true })
   }
 
   const handleQuit = async () => {
     await cancelSession(sessionId)
-    clearActiveWorkout()
+    clearWorkoutData()
     navigate('/')
+  }
+
+  const handleFinishRequest = () => {
+    const anyUndone = Object.values(allExerciseSets).some(sets => sets.some(s => !s.done))
+    if (anyUndone) {
+      setShowFinishEarly(true)
+    } else {
+      handleFinish()
+    }
   }
 
   if (!routine || queue.length === 0) {
@@ -342,11 +324,10 @@ export default function ActiveWorkout() {
     )
   }
 
-  // Progress bar
+  const doneSetsCount = inlineSets.filter(s => s.done).length
+  const totalSetsCount = inlineSets.length
+  const isLastExercise = exerciseIndex >= queue.length - 1
   const progressPct = queue.length > 0 ? ((exerciseIndex + (doneSetsCount / Math.max(totalSetsCount, 1))) / queue.length) * 100 : 0
-
-  // Last time hint
-  const lastExData = lastSets.length > 0 ? lastSets : null
 
   return (
     <div style={{
@@ -388,7 +369,7 @@ export default function ActiveWorkout() {
           {fmtElapsed(startedAt)}
         </div>
         <button
-          onClick={() => setShowQuit(true)}
+          onClick={handleFinishRequest}
           style={{
             background: 'var(--ink)',
             color: 'var(--bg)',
@@ -456,12 +437,9 @@ export default function ActiveWorkout() {
 
       {/* Main content */}
       <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '14px 18px 16px' }}>
-        {/* Exercise header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
           <div style={{ flex: 1 }}>
-            <div className="eyebrow">
-              Exercise {exerciseIndex + 1} of {queue.length}
-            </div>
+            <div className="eyebrow">Exercise {exerciseIndex + 1} of {queue.length}</div>
             <div style={{
               fontSize: 26,
               fontWeight: 600,
@@ -478,8 +456,7 @@ export default function ActiveWorkout() {
           </div>
         </div>
 
-        {/* Last time hint */}
-        {lastExData && (
+        {lastSets.length > 0 && (
           <div style={{
             padding: '10px 12px',
             borderRadius: 12,
@@ -492,17 +469,13 @@ export default function ActiveWorkout() {
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {lastSets.map((s, i) => (
-                <span
-                  key={i}
-                  className="mono"
-                  style={{
-                    background: 'var(--bg)',
-                    borderRadius: 6,
-                    padding: '3px 7px',
-                    fontSize: 12,
-                    color: 'var(--ink-2)',
-                  }}
-                >
+                <span key={i} className="mono" style={{
+                  background: 'var(--bg)',
+                  borderRadius: 6,
+                  padding: '3px 7px',
+                  fontSize: 12,
+                  color: 'var(--ink-2)',
+                }}>
                   {isWeighted
                     ? `${toDisplay(s.weight)} ${unit} × ${s.reps}`
                     : exerciseType === 'cardio'
@@ -514,7 +487,6 @@ export default function ActiveWorkout() {
           </div>
         )}
 
-        {/* Inline set rows */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {inlineSets.map((s, i) => (
             <SetRow
@@ -528,11 +500,7 @@ export default function ActiveWorkout() {
           ))}
         </div>
 
-        <button
-          className="btn btn-ghost"
-          onClick={addInlineSet}
-          style={{ marginTop: 12 }}
-        >
+        <button className="btn btn-ghost" onClick={addInlineSet} style={{ marginTop: 12 }}>
           <Icon name="plus" size={14} /> Add set
         </button>
       </div>
@@ -574,20 +542,37 @@ export default function ActiveWorkout() {
         )}
       </div>
 
-      {/* Quit sheet */}
-      {showQuit && (
-        <BottomSheet open={showQuit} onClose={() => setShowQuit(false)}>
+      {/* Finish early confirmation */}
+      {showFinishEarly && (
+        <BottomSheet open={showFinishEarly} onClose={() => setShowFinishEarly(false)}>
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
-              Quit workout?
+              Finish workout early?
             </div>
             <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>
-              Your progress will be lost.
+              Some sets haven't been completed. Your ticked sets will still be saved.
             </div>
           </div>
-          <button className="btn btn-danger" onClick={handleQuit}>Quit workout</button>
-          <button className="btn btn-ghost" onClick={() => setShowQuit(false)} style={{ marginTop: 8 }}>
-            Keep going
+          <button
+            className="btn btn-primary"
+            onClick={() => { setShowFinishEarly(false); handleFinish() }}
+            disabled={finishing}
+          >
+            {finishing ? 'Saving…' : 'Yes, finish workout'}
+          </button>
+          <button
+            className="btn btn-ghost"
+            onClick={() => setShowFinishEarly(false)}
+            style={{ marginTop: 8 }}
+          >
+            No, keep going
+          </button>
+          <button
+            className="btn btn-ghost"
+            onClick={() => { setShowFinishEarly(false); handleQuit() }}
+            style={{ marginTop: 8, color: 'var(--danger)' }}
+          >
+            Discard workout
           </button>
         </BottomSheet>
       )}
