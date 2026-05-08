@@ -2,9 +2,40 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useHistory } from '../hooks/useHistory'
 import { useWeightUnit } from '../context/WeightUnitContext'
+import { useActiveWorkout } from '../context/ActiveWorkoutContext'
 import BottomNav from '../components/BottomNav'
 import IronLogLogo from '../components/IronLogLogo'
 import { Icon } from '../components/Icon'
+
+function LivePill({ activeWorkout, navigate }) {
+  if (!activeWorkout) return null
+  return (
+    <button
+      onClick={() => navigate(`/workout/${activeWorkout.routineId}`)}
+      style={{
+        background: 'var(--danger)',
+        color: '#fff',
+        border: 'none',
+        cursor: 'pointer',
+        borderRadius: 999,
+        padding: '6px 12px 6px 9px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 12,
+        fontWeight: 600,
+        fontFamily: 'inherit',
+        flexShrink: 0,
+      }}
+    >
+      <span style={{
+        width: 7, height: 7, borderRadius: 999,
+        background: 'currentColor',
+      }} />
+      {activeWorkout.routineName}
+    </button>
+  )
+}
 
 const SORTS = [
   { key: 'recent',    label: 'Recent' },
@@ -69,6 +100,7 @@ export default function ExerciseHistory() {
   const navigate = useNavigate()
   const { fetchExerciseHistory, exHistCacheExists } = useHistory()
   const { unit, toDisplay } = useWeightUnit()
+  const { activeWorkout } = useActiveWorkout()
   const [exercises, setExercises] = useState([])
   const [loading, setLoading] = useState(!exHistCacheExists)
   const [sort, setSort] = useState('recent')
@@ -110,9 +142,11 @@ export default function ExerciseHistory() {
           <div style={{ display: 'flex', alignItems: 'center', minHeight: 32 }}>
             <IronLogLogo height={28} />
             <div style={{ flex: 1 }} />
+            <LivePill activeWorkout={activeWorkout} navigate={navigate} />
             <button
               onClick={() => navigate('/settings')}
               style={{
+                marginLeft: 8,
                 background: 'none', border: 'none', cursor: 'pointer',
                 width: 36, height: 36, borderRadius: 10,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',

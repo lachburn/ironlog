@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useRoutines } from '../hooks/useRoutines'
 import { useWorkout } from '../hooks/useWorkout'
 import { useWeightUnit } from '../context/WeightUnitContext'
+import { useActiveWorkout } from '../context/ActiveWorkoutContext'
 import BottomSheet from '../components/BottomSheet'
 import { Icon } from '../components/Icon'
 
@@ -153,6 +154,7 @@ export default function ActiveWorkout() {
   const { routines } = useRoutines()
   const { startSession, finishSession, cancelSession, logSet, getLastSets, saveProgress, getProgress } = useWorkout()
   const { unit, toDisplay, toKg } = useWeightUnit()
+  const { setActiveWorkout, clearActiveWorkout } = useActiveWorkout()
 
   const routine = routines.find(r => r.id === id)
   const exercises = routine?.routine_exercises || []
@@ -199,11 +201,13 @@ export default function ActiveWorkout() {
     if (resume && resume.sessionId) {
       setSessionId(resume.sessionId)
       setExerciseIndex(resume.exerciseIndex || 0)
+      setActiveWorkout({ routineId: routine.id, routineName: routine.name, startedAt })
     } else {
       startSession(routine.id, routine.name).then(({ session }) => {
         if (session) {
           setSessionId(session.id)
           saveProgress(session.id, 0)
+          setActiveWorkout({ routineId: routine.id, routineName: routine.name, startedAt })
         }
       })
     }
@@ -320,11 +324,13 @@ export default function ActiveWorkout() {
     setFinishing(true)
     await handleLogDoneSets()
     await finishSession(sessionId)
+    clearActiveWorkout()
     navigate(`/history/${sessionId}`, { replace: true })
   }
 
   const handleQuit = async () => {
     await cancelSession(sessionId)
+    clearActiveWorkout()
     navigate('/')
   }
 

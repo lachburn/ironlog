@@ -86,8 +86,6 @@ export default function SessionDetail() {
 
   const duration = formatDuration(session.started_at, session.completed_at)
   const totalSets = exercises.reduce((a, e) => a + e.sets.length, 0)
-  const totalVol = exercises.reduce((a, e) =>
-    a + e.sets.reduce((x, st) => x + (st.weight || 0) * (st.reps || 0), 0), 0)
 
   return (
     <div style={{
@@ -140,10 +138,13 @@ export default function SessionDetail() {
               { v: exercises.length, l: 'exercises' },
               { v: totalSets, l: 'sets' },
               { v: duration, l: 'duration' },
-              { v: totalVol > 0 ? `${Math.round(totalVol).toLocaleString()}` : '—', l: `${unit} total` },
             ].map((x, i) => (
-              <div key={i} style={{ flex: 1 }}>
-                <div className="mono" style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+              <div key={i} style={{
+                flex: 1,
+                borderLeft: i > 0 ? '1px solid var(--border)' : 'none',
+                paddingLeft: i > 0 ? 14 : 0,
+              }}>
+                <div className="mono" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
                   {x.v}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{x.l}</div>
@@ -170,7 +171,7 @@ export default function SessionDetail() {
                       textAlign: 'left',
                       background: 'none',
                       border: 'none',
-                      cursor: ex.exercise_id ? 'pointer' : 'default',
+                      cursor: 'pointer',
                       padding: 0,
                       fontWeight: 600,
                       fontSize: 15,
@@ -187,7 +188,7 @@ export default function SessionDetail() {
                     key={si}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '24px 1fr 1fr',
+                      gridTemplateColumns: '24px 1fr 1fr auto',
                       alignItems: 'center',
                       gap: 12,
                       padding: '8px 0',
@@ -206,18 +207,33 @@ export default function SessionDetail() {
                       </>
                     )}
                     {ex.type === 'bodyweight' && (
-                      <div className="mono" style={{ fontSize: 14, gridColumn: 'span 2', color: 'var(--ink)' }}>
+                      <div className="mono" style={{ fontSize: 14, gridColumn: '2 / 4', color: 'var(--ink)' }}>
                         {st.reps} <span style={{ color: 'var(--muted)', fontSize: 11 }}>reps</span>
                       </div>
                     )}
                     {isCardio && (
-                      <div className="mono" style={{ fontSize: 14, gridColumn: 'span 2', color: 'var(--ink)' }}>
+                      <div className="mono" style={{ fontSize: 14, gridColumn: '2 / 4', color: 'var(--ink)' }}>
                         {st.duration_seconds
                           ? `${Math.floor(st.duration_seconds / 60)}:${String(st.duration_seconds % 60).padStart(2, '0')}`
                           : '—'}
                         {' '}<span style={{ color: 'var(--muted)', fontSize: 11 }}>dur</span>
                       </div>
                     )}
+                    <div>
+                      {st.is_failure && (
+                        <span style={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          color: 'var(--good)',
+                          background: 'color-mix(in oklch, var(--good) 12%, transparent)',
+                          padding: '2px 7px',
+                          borderRadius: 999,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          To Failure
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

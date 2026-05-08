@@ -205,7 +205,7 @@ export default function Settings() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 26, color: 'var(--faint)', fontSize: 11 }}>
-          ironlog · v2.1
+          ironlog · v2.5
         </div>
       </div>
     </div>

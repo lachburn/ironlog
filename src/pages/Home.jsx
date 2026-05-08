@@ -2,10 +2,41 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRoutines } from '../hooks/useRoutines'
 import { useHistory } from '../hooks/useHistory'
+import { useActiveWorkout } from '../context/ActiveWorkoutContext'
 import BottomSheet from '../components/BottomSheet'
 import BottomNav from '../components/BottomNav'
 import IronLogLogo from '../components/IronLogLogo'
 import { Icon } from '../components/Icon'
+
+function LivePill({ activeWorkout, navigate }) {
+  if (!activeWorkout) return null
+  return (
+    <button
+      onClick={() => navigate(`/workout/${activeWorkout.routineId}`)}
+      style={{
+        background: 'var(--danger)',
+        color: '#fff',
+        border: 'none',
+        cursor: 'pointer',
+        borderRadius: 999,
+        padding: '6px 12px 6px 9px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 12,
+        fontWeight: 600,
+        fontFamily: 'inherit',
+        flexShrink: 0,
+      }}
+    >
+      <span style={{
+        width: 7, height: 7, borderRadius: 999,
+        background: 'currentColor',
+      }} />
+      {activeWorkout.routineName}
+    </button>
+  )
+}
 
 function toYMD(d) {
   const dt = new Date(d)
@@ -88,6 +119,7 @@ export default function Home() {
   const navigate = useNavigate()
   const { routines, loading } = useRoutines()
   const { sessions } = useHistory()
+  const { activeWorkout } = useActiveWorkout()
   const [picked, setPicked] = useState(null)
 
   const lastSession = sessions[0] ?? null
@@ -109,9 +141,11 @@ export default function Home() {
         <div style={{ display: 'flex', alignItems: 'center', minHeight: 32 }}>
           <IronLogLogo height={28} />
           <div style={{ flex: 1 }} />
+          <LivePill activeWorkout={activeWorkout} navigate={navigate} />
           <button
             onClick={() => navigate('/settings')}
             style={{
+              marginLeft: 8,
               background: 'none',
               border: 'none',
               cursor: 'pointer',

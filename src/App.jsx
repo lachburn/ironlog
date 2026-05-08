@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { WeightUnitProvider } from './context/WeightUnitContext'
+import { ActiveWorkoutProvider } from './context/ActiveWorkoutContext'
 import Auth from './pages/Auth'
 import Home from './pages/Home'
 import EditRoutine from './pages/EditRoutine'
@@ -49,9 +50,11 @@ export default function App() {
     <ThemeProvider>
       <WeightUnitProvider>
         <AuthProvider>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
+          <ActiveWorkoutProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </ActiveWorkoutProvider>
         </AuthProvider>
       </WeightUnitProvider>
     </ThemeProvider>
