@@ -42,6 +42,8 @@ export function Icon({ name, size = 20, stroke = 1.6, style }) {
     case 'link':       return <svg {...common}><path d="M10 14a5 5 0 007.07 0l3-3a5 5 0 00-7.07-7.07l-1 1"/><path d="M14 10a5 5 0 00-7.07 0l-3 3a5 5 0 007.07 7.07l1-1"/></svg>;
     case 'user':       return <svg {...common}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></svg>;
     case 'trophy':     return <svg {...common}><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0V4z"/><path d="M17 5h3v3a3 3 0 01-3 3M7 5H4v3a3 3 0 003 3"/></svg>;
+    case 'flag':       return <svg {...common}><path d="M4 21V4M4 4h13l-2 4 2 4H4"/></svg>;
+    case 'route':      return <svg {...common}><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a4 4 0 000-8H9a4 4 0 010-8h7"/></svg>;
     default:           return null;
   }
 }

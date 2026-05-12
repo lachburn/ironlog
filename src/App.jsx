@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { WeightUnitProvider } from './context/WeightUnitContext'
+import { WeekStartProvider } from './context/WeekStartContext'
 import { ActiveWorkoutProvider } from './context/ActiveWorkoutContext'
 import Auth from './pages/Auth'
 import Home from './pages/Home'
@@ -13,6 +14,9 @@ import SessionDetail from './pages/SessionDetail'
 import ExerciseHistory from './pages/ExerciseHistory'
 import ExerciseDetail from './pages/ExerciseDetail'
 import Settings from './pages/Settings'
+import Journeys from './pages/Journeys'
+import JourneyDetail from './pages/JourneyDetail'
+import JourneyCreate from './pages/JourneyCreate'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -39,6 +43,9 @@ function AppRoutes() {
       <Route path="/history/:id" element={<ProtectedRoute><SessionDetail /></ProtectedRoute>} />
       <Route path="/exercise-history" element={<ProtectedRoute><ExerciseHistory /></ProtectedRoute>} />
       <Route path="/exercise-history/:exerciseId" element={<ProtectedRoute><ExerciseDetail /></ProtectedRoute>} />
+      <Route path="/journeys" element={<ProtectedRoute><Journeys /></ProtectedRoute>} />
+      <Route path="/journeys/new" element={<ProtectedRoute><JourneyCreate /></ProtectedRoute>} />
+      <Route path="/journeys/:id" element={<ProtectedRoute><JourneyDetail /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -49,13 +56,15 @@ export default function App() {
   return (
     <ThemeProvider>
       <WeightUnitProvider>
-        <AuthProvider>
-          <ActiveWorkoutProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </ActiveWorkoutProvider>
-        </AuthProvider>
+        <WeekStartProvider>
+          <AuthProvider>
+            <ActiveWorkoutProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </ActiveWorkoutProvider>
+          </AuthProvider>
+        </WeekStartProvider>
       </WeightUnitProvider>
     </ThemeProvider>
   )

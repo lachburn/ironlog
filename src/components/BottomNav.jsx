@@ -6,21 +6,23 @@ const TABS = [
     label: 'Train',
     icon: 'home',
     path: '/',
-    matches: ['/', '/routines/new'],
+    matches: ['/'],
+    matchPrefix: '/routines/',
   },
   {
-    label: 'Workouts',
+    label: 'Journeys',
+    icon: 'flag',
+    path: '/journeys',
+    matches: ['/journeys'],
+    matchPrefix: '/journeys/',
+  },
+  {
+    label: 'History',
     icon: 'list',
     path: '/history',
     matches: ['/history'],
     matchPrefix: '/history/',
-  },
-  {
-    label: 'Exercises',
-    icon: 'chart',
-    path: '/exercise-history',
-    matches: ['/exercise-history'],
-    matchPrefix: '/exercise-history/',
+    matchPrefix2: '/exercise-history',
   },
 ]
 
@@ -30,7 +32,8 @@ export default function BottomNav() {
 
   const isVisible = TABS.some(t =>
     t.matches.includes(location.pathname) ||
-    (t.matchPrefix && location.pathname.startsWith(t.matchPrefix))
+    (t.matchPrefix && location.pathname.startsWith(t.matchPrefix)) ||
+    (t.matchPrefix2 && location.pathname.startsWith(t.matchPrefix2))
   )
   if (!isVisible) return null
 
@@ -45,7 +48,8 @@ export default function BottomNav() {
       {TABS.map(t => {
         const active =
           t.matches.includes(location.pathname) ||
-          (t.matchPrefix && location.pathname.startsWith(t.matchPrefix))
+          (t.matchPrefix && location.pathname.startsWith(t.matchPrefix)) ||
+          (t.matchPrefix2 && location.pathname.startsWith(t.matchPrefix2))
         return (
           <button
             key={t.path}
@@ -62,6 +66,7 @@ export default function BottomNav() {
               padding: '10px 0 8px',
               color: active ? 'var(--ink)' : 'var(--muted)',
               transition: 'color .15s ease',
+              fontFamily: 'inherit',
             }}
           >
             <Icon name={t.icon} size={22} stroke={active ? 1.9 : 1.5} />

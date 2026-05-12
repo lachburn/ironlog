@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { useWeightUnit } from '../context/WeightUnitContext'
+import { useWeekStart } from '../context/WeekStartContext'
 import { Icon } from '../components/Icon'
 
 export default function Settings() {
@@ -10,6 +11,7 @@ export default function Settings() {
   const { user, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
   const { unit: weightUnit, setUnit: handleWeightUnit } = useWeightUnit()
+  const { weekStart, setWeekStart } = useWeekStart()
   const [signingOut, setSigningOut] = useState(false)
 
   const handleSignOut = async () => {
@@ -23,6 +25,12 @@ export default function Settings() {
     { id: 'light',  label: 'Light',  icon: 'sun',     bg: 'oklch(98.4% 0.005 80)',  iconColor: 'oklch(38% 0.012 60)' },
     { id: 'dark',   label: 'Dark',   icon: 'moon',    bg: 'oklch(15% 0.008 250)',   iconColor: 'oklch(96% 0.005 250)' },
     { id: 'tilly',  label: 'Tilly',  icon: 'sparkle', bg: 'oklch(93% 0.055 350)',   iconColor: 'oklch(62% 0.28 350)' },
+  ]
+
+  const WEEK_DAYS = [
+    { id: 1, label: 'Monday' },
+    { id: 0, label: 'Sunday' },
+    { id: 6, label: 'Saturday' },
   ]
 
   return (
@@ -174,6 +182,45 @@ export default function Settings() {
           ))}
         </div>
 
+        {/* Week starts on */}
+        <div className="eyebrow" style={{ padding: '8px 4px 6px' }}>Week starts on</div>
+        <div className="card" style={{ padding: 6, marginBottom: 18 }}>
+          {WEEK_DAYS.map(d => (
+            <button
+              key={d.id}
+              onClick={() => setWeekStart(d.id)}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                background: weekStart === d.id ? 'var(--surface-2)' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '12px 12px',
+                borderRadius: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                color: 'var(--ink)',
+                transition: 'background .15s ease',
+                fontFamily: 'inherit',
+              }}
+            >
+              <div style={{
+                width: 32, height: 32, borderRadius: 10,
+                background: 'var(--surface-2)', color: 'var(--ink-2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <Icon name="calendar" size={14} />
+              </div>
+              <div style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{d.label}</div>
+              {weekStart === d.id && (
+                <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />
+              )}
+            </button>
+          ))}
+        </div>
+
         {/* Account */}
         <div className="eyebrow" style={{ padding: '8px 4px 6px' }}>Account</div>
         <div className="card" style={{ padding: 6 }}>
@@ -205,7 +252,7 @@ export default function Settings() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 26, color: 'var(--faint)', fontSize: 11 }}>
-          ironlog · v2.9
+          ironlog · v3.0
         </div>
       </div>
     </div>
