@@ -103,7 +103,7 @@ export default function ExerciseDetail() {
     }
   })
 
-  // Build chart data — max weight per session
+  // Build chart data — oldest first (left) to newest (right)
   const chartData = sessions
     .filter(s => isCardio ? s.sets?.some(x => x.duration_seconds) : s.max_weight > 0)
     .map(s => ({
@@ -112,6 +112,7 @@ export default function ExerciseDetail() {
         ? (s.sets?.reduce((acc, x) => acc + (x.duration_seconds || 0), 0) / (s.sets?.length || 1))
         : toDisplay(s.max_weight),
     }))
+    .reverse()
 
   const totalSets = sets.length
   const setsWithReps = sets.filter(s => s.reps != null && s.reps > 0)
@@ -180,19 +181,6 @@ export default function ExerciseDetail() {
         {/* Chart */}
         {chartData.length > 1 && (
           <div className="card" style={{ padding: 14, marginBottom: 14 }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 6,
-            }}>
-              <div className="eyebrow">
-                {isW ? 'Estimated 1RM' : isCardio ? 'Longest set' : 'Best reps'}
-              </div>
-              <div className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>
-                {chartData.length} session{chartData.length !== 1 ? 's' : ''}
-              </div>
-            </div>
             <LineChart data={chartData} color="var(--accent)" />
           </div>
         )}

@@ -108,9 +108,22 @@ export default function Journeys() {
 
       <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '10px 18px 24px' }}>
 
+        <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="eyebrow">In progress</div>
+          <button
+            onClick={() => navigate('/journeys/new')}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#fff', fontSize: 13, fontWeight: 500,
+              fontFamily: 'inherit', padding: 0,
+            }}
+          >
+            + New journey
+          </button>
+        </div>
+
         {journeys.length > 0 && (
           <>
-            <div className="eyebrow" style={{ padding: '4px 4px 8px' }}>In progress</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
               {journeys.map(j => {
                 const pct = journeyPct(j)
@@ -160,34 +173,6 @@ export default function Journeys() {
             </div>
           </>
         )}
-
-        {/* New journey CTA */}
-        <button
-          onClick={() => navigate('/journeys/new')}
-          className="row-tap"
-          style={{
-            width: '100%', textAlign: 'left', cursor: 'pointer',
-            padding: '14px 14px',
-            display: 'flex', alignItems: 'center', gap: 14,
-            background: 'var(--surface)', border: '1px dashed var(--border-2)',
-            borderRadius: 18, fontFamily: 'inherit',
-          }}
-        >
-          <div style={{
-            width: 48, height: 48, borderRadius: 13,
-            background: 'var(--surface-2)', color: 'var(--ink-2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
-            <Icon name="plus" size={18} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--ink)' }}>New Journey</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-              Train for a marathon, comp, or any long-term goal
-            </div>
-          </div>
-          <Icon name="chev-r" size={16} style={{ color: 'var(--faint)', flexShrink: 0 }} />
-        </button>
 
       </div>
 

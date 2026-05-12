@@ -392,14 +392,16 @@ export default function ActiveWorkout() {
           {queue.map((re, i) => {
             const ex = re.exercises || {}
             const active = i === exerciseIndex
-            const done = i < exerciseIndex
+            const exId = ex.id
+            const exSets = allExerciseSets[exId] || []
+            const allDone = exSets.length > 0 && exSets.every(s => s.done)
             return (
               <button
                 key={i}
                 onClick={() => setExerciseIndex(i)}
                 style={{
                   background: active ? 'var(--ink)' : 'var(--surface-2)',
-                  color: active ? 'var(--bg)' : done ? 'var(--muted)' : 'var(--ink)',
+                  color: active ? 'var(--bg)' : allDone ? 'var(--muted)' : 'var(--ink)',
                   border: 'none',
                   cursor: 'pointer',
                   borderRadius: 999,
@@ -410,12 +412,12 @@ export default function ActiveWorkout() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 5,
-                  textDecoration: done && !active ? 'line-through' : 'none',
-                  opacity: done && !active ? 0.7 : 1,
+                  textDecoration: allDone && !active ? 'line-through' : 'none',
+                  opacity: allDone && !active ? 0.7 : 1,
                   fontFamily: 'inherit',
                 }}
               >
-                {done && <Icon name="check" size={12} stroke={2.4} />}
+                {allDone && !active && <Icon name="check" size={12} stroke={2.4} />}
                 {ex.name || `Exercise ${i + 1}`}
               </button>
             )

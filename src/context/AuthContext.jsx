@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
+const DEV_BYPASS = import.meta.env.VITE_DEV_BYPASS_AUTH === 'true'
+const MOCK_USER = { id: 'dev-bypass-user', email: 'dev@localhost' }
+
 const AuthContext = createContext(null)
 
 const SEED_EXERCISES = [
@@ -174,10 +177,12 @@ async function seedExercises(userId) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(DEV_BYPASS ? MOCK_USER : null)
+  const [loading, setLoading] = useState(!DEV_BYPASS)
 
   useEffect(() => {
+    if (DEV_BYPASS) return
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setLoading(false)

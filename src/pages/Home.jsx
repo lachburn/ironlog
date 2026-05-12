@@ -65,16 +65,17 @@ function timeAgo(iso) {
   return `${Math.floor(days / 30)}mo ago`
 }
 
-function Monogram({ name, size = 48 }) {
+function Monogram({ name, emoji, size = 48 }) {
   const letter = (name || '?').trim().charAt(0).toUpperCase()
   return (
     <div style={{
       width: size, height: size, borderRadius: Math.round(size * 0.27),
       background: 'var(--chip-bg)', color: 'var(--chip-ink)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: Math.round(size * 0.42), fontWeight: 600, letterSpacing: '-0.02em', flexShrink: 0,
+      fontSize: emoji ? Math.round(size * 0.52) : Math.round(size * 0.42),
+      fontWeight: 600, letterSpacing: '-0.02em', flexShrink: 0,
     }}>
-      {letter}
+      {emoji || letter}
     </div>
   )
 }
@@ -239,8 +240,18 @@ export default function Home() {
         {activeJourney && <JourneyCard journey={activeJourney} navigate={navigate} />}
 
         {/* Routines header */}
-        <div style={{ marginBottom: 10, marginTop: 6 }}>
+        <div style={{ marginBottom: 10, marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className="eyebrow">Routines</div>
+          <button
+            onClick={() => navigate('/routines/new')}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#fff', fontSize: 13, fontWeight: 500,
+              fontFamily: 'inherit', padding: 0,
+            }}
+          >
+            + New routine
+          </button>
         </div>
 
         {loading ? (
@@ -262,7 +273,7 @@ export default function Home() {
                     background: 'var(--surface)', border: '1px solid var(--border)',
                   }}
                 >
-                  <Monogram name={r.name} size={48} />
+                  <Monogram name={r.name} emoji={r.emoji} size={48} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--ink)' }}>{r.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
@@ -274,33 +285,6 @@ export default function Home() {
               )
             })}
 
-            {/* New routine — dashed CTA */}
-            <button
-              onClick={() => navigate('/routines/new')}
-              className="row-tap"
-              style={{
-                width: '100%', textAlign: 'left', cursor: 'pointer',
-                padding: '14px 14px',
-                display: 'flex', alignItems: 'center', gap: 14,
-                background: 'var(--surface)', border: '1px dashed var(--border-2)',
-                borderRadius: 18, fontFamily: 'inherit',
-              }}
-            >
-              <div style={{
-                width: 48, height: 48, borderRadius: 13,
-                background: 'var(--surface-2)', color: 'var(--ink-2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
-                <Icon name="plus" size={18} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--ink)' }}>New routine</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-                  Build a workout you can run again and again
-                </div>
-              </div>
-              <Icon name="chev-r" size={16} style={{ color: 'var(--faint)', flexShrink: 0 }} />
-            </button>
           </div>
         )}
 
@@ -312,7 +296,7 @@ export default function Home() {
             width: '100%', textAlign: 'left', cursor: 'pointer',
             marginTop: 8, padding: '14px 14px',
             display: 'flex', alignItems: 'center', gap: 14,
-            background: 'var(--surface)', border: '1px solid var(--border)',
+            background: 'var(--surface)', border: '1px dashed var(--border)',
           }}
         >
           <div style={{

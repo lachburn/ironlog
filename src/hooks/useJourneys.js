@@ -13,7 +13,7 @@ function uid() {
 }
 
 // Build weekly journey items from days selection + types map
-function buildJourneyItems(startDate, targetDate, days, types) {
+function buildJourneyItems(startDate, targetDate, days, types, routineLinks) {
   const items = []
   const start = new Date(startDate)
   start.setHours(6, 30, 0, 0)
@@ -27,6 +27,7 @@ function buildJourneyItems(startDate, targetDate, days, types) {
         id: uid(),
         date: new Date(current).toISOString(),
         type: types[dow] || 'Workout',
+        routine_id: routineLinks?.[dow] || null,
         details: '',
         completed: false,
         linked_session_id: null,
@@ -40,7 +41,7 @@ function buildJourneyItems(startDate, targetDate, days, types) {
 export function useJourneys() {
   const [journeys, setJourneys] = useState(load)
 
-  const createJourney = useCallback(({ title, goal, target_date, days, types }) => {
+  const createJourney = useCallback(({ title, goal, target_date, days, types, routineLinks }) => {
     const today = new Date().toISOString()
     const journey = {
       id: uid(),
@@ -49,7 +50,7 @@ export function useJourneys() {
       target_date,
       start_date: today,
       created_at: today,
-      items: buildJourneyItems(today, target_date, days, types),
+      items: buildJourneyItems(today, target_date, days, types, routineLinks),
     }
     const next = [journey, ...load()]
     save(next)

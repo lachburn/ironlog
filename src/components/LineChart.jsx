@@ -40,9 +40,10 @@ export default function LineChart({ data, color = 'var(--accent)' }) {
     ? [0, 1]
     : [0, Math.floor((data.length - 1) / 2), data.length - 1]
 
+  const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   const fmtDate = (iso) => {
     const d = new Date(iso)
-    return `${d.getDate()}/${d.getMonth() + 1}`
+    return `${d.getDate()}-${MONTHS_SHORT[d.getMonth()]}-${String(d.getFullYear()).slice(2)}`
   }
 
   return (
@@ -83,18 +84,21 @@ export default function LineChart({ data, color = 'var(--accent)' }) {
       ))}
 
       {/* X axis labels */}
-      {xLabels.map((i) => (
-        <text
-          key={i}
-          x={scaleX(i)} y={H - 4}
-          textAnchor="middle"
-          fontSize="10"
-          fill="var(--muted)"
-          fontFamily="'Inter Tight', system-ui, sans-serif"
-        >
-          {fmtDate(data[i].x)}
-        </text>
-      ))}
+      {xLabels.map((i, pos) => {
+        const anchor = pos === 0 ? 'start' : pos === xLabels.length - 1 ? 'end' : 'middle'
+        return (
+          <text
+            key={i}
+            x={scaleX(i)} y={H - 4}
+            textAnchor={anchor}
+            fontSize="10"
+            fill="var(--muted)"
+            fontFamily="'Inter Tight', system-ui, sans-serif"
+          >
+            {fmtDate(data[i].x)}
+          </text>
+        )
+      })}
 
       {/* Fill area */}
       <path d={fillPath} fill="url(#chartFill)" />

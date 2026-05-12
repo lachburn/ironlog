@@ -66,6 +66,8 @@ export default function EditRoutine() {
   const isNew = !id
 
   const [name, setName] = useState('')
+  const [emoji, setEmoji] = useState('')
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [exercises, setExercises] = useState([])
   const [showExerciseModal, setShowExerciseModal] = useState(false)
   const [configuringExercise, setConfiguringExercise] = useState(null)
@@ -79,6 +81,7 @@ export default function EditRoutine() {
       const r = routines.find(r => r.id === id)
       if (r) {
         setName(r.name)
+        setEmoji(r.emoji || '')
         setExercises(
           (r.routine_exercises || []).map(re => ({
             id: re.id,
@@ -160,12 +163,12 @@ export default function EditRoutine() {
     setError('')
 
     if (isNew) {
-      const { data, error: err } = await createRoutine({ name: name.trim(), emoji: '' })
+      const { data, error: err } = await createRoutine({ name: name.trim(), emoji: emoji.trim() })
       if (err) { setError(err.message); setSaving(false); return }
       if (exercises.length > 0) await saveRoutineExercises(data.id, exercises)
       navigate('/')
     } else {
-      await updateRoutine(id, { name: name.trim() })
+      await updateRoutine(id, { name: name.trim(), emoji: emoji.trim() })
       await saveRoutineExercises(id, exercises)
       navigate('/')
     }
@@ -239,15 +242,29 @@ export default function EditRoutine() {
       </div>
 
       <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '0 18px 24px' }}>
-        {/* Name field */}
+        {/* Emoji + Name row */}
         <Field label="Routine name">
-          <input
-            type="text"
-            autoFocus
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="e.g. Push Day"
-          />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button
+              onClick={() => setShowEmojiPicker(true)}
+              style={{
+                width: 48, height: 48, borderRadius: 13, flexShrink: 0,
+                background: 'var(--surface-2)', border: '1px solid var(--border)',
+                cursor: 'pointer', fontSize: 24, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              {emoji || <span style={{ fontSize: 18, color: 'var(--muted)' }}>🏷️</span>}
+            </button>
+            <input
+              type="text"
+              autoFocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Push Day"
+              style={{ flex: 1 }}
+            />
+          </div>
         </Field>
 
         {/* Exercises header */}
@@ -417,6 +434,37 @@ export default function EditRoutine() {
           >
             Cancel
           </button>
+        </BottomSheet>
+      )}
+
+      {/* Emoji picker sheet */}
+      {showEmojiPicker && (
+        <BottomSheet open={showEmojiPicker} onClose={() => setShowEmojiPicker(false)} title="Pick an emoji">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginBottom: 12 }}>
+            {['🔥','💪','🦵','🏋️','🤸','🏃','⚡','🎯','💥','🧠','🏅','🥇','🦾','🚀','❤️','🌊','🧲','🏔️','⛰️','🎖️','🥊','🎽','🩺','🧘','🏊','🚴','🤼','🏇','🌟','⭐','💎','🔑','🌀','🎪','🦅'].map(e => (
+              <button
+                key={e}
+                onClick={() => { setEmoji(e); setShowEmojiPicker(false) }}
+                style={{
+                  fontSize: 26, background: emoji === e ? 'var(--accent-soft)' : 'var(--surface-2)',
+                  border: emoji === e ? '1.5px solid var(--accent)' : '1px solid transparent',
+                  borderRadius: 10, padding: '6px 0', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  aspectRatio: '1',
+                }}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+          {emoji && (
+            <button
+              className="btn btn-ghost"
+              onClick={() => { setEmoji(''); setShowEmojiPicker(false) }}
+            >
+              Remove emoji
+            </button>
+          )}
         </BottomSheet>
       )}
 
