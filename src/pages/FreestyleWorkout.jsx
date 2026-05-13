@@ -10,7 +10,14 @@ import BottomSheet from '../components/BottomSheet'
 import { Icon } from '../components/Icon'
 
 const FREESTYLE_KEY = 'ironlog-freestyle-workout'
-const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
+const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio', run: 'Run' }
+
+function parseMmSs(str) {
+  if (!str) return null
+  const parts = str.split(':').map(Number)
+  if (parts.length === 2) return parts[0] * 60 + (parts[1] || 0)
+  return parts[0] || null
+}
 
 function fmtElapsed(startIso) {
   const s = Math.floor((Date.now() - new Date(startIso)) / 1000)
@@ -43,6 +50,7 @@ function TypeChip({ type }) {
 function SetRow({ idx, set, type, update, remove }) {
   const isWeighted = type === 'weighted' || type === 'dumbbell'
   const isCardio = type === 'cardio'
+  const isRun = type === 'run'
   return (
     <div style={{
       display: 'flex',
@@ -76,6 +84,13 @@ function SetRow({ idx, set, type, update, remove }) {
       )}
       {isCardio && (
         <FieldInline label="sec" value={set.duration || set.reps} onChange={v => update({ duration: v, reps: v })} wide />
+      )}
+      {isRun && (
+        <>
+          <FieldInline label="mm:ss" value={set.duration || ''} onChange={v => update({ duration: v })} text wide />
+          <FieldInline label="km" value={set.distance || ''} onChange={v => update({ distance: v })} decimal />
+          <FieldInline label="bpm" value={set.heartRate || ''} onChange={v => update({ heartRate: v })} />
+        </>
       )}
 
       <button
@@ -111,12 +126,12 @@ function SetRow({ idx, set, type, update, remove }) {
   )
 }
 
-function FieldInline({ label, value, onChange, decimal, wide }) {
+function FieldInline({ label, value, onChange, decimal, wide, text }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, minWidth: wide ? 80 : 60 }}>
       <input
         type="text"
-        inputMode={decimal ? 'decimal' : 'numeric'}
+        inputMode={text ? undefined : decimal ? 'decimal' : 'numeric'}
         value={value}
         onChange={e => onChange(e.target.value)}
         className="mono"
@@ -213,8 +228,8 @@ export default function FreestyleWorkout() {
 
   const updateInlineSet = (i, patch) => setInlineSets(prev => prev.map((s, si) => si !== i ? s : { ...s, ...patch }))
   const addInlineSet = () => {
-    const last = inlineSets[inlineSets.length - 1] || { weight: '', reps: '', done: false }
-    setInlineSets(prev => [...prev, { weight: last.weight, reps: last.reps, done: false }])
+    const last = inlineSets[inlineSets.length - 1] || {}
+    setInlineSets(prev => [...prev, { ...last, done: false }])
   }
   const removeInlineSet = (i) => setInlineSets(prev => prev.filter((_, si) => si !== i))
 
@@ -280,17 +295,18 @@ export default function FreestyleWorkout() {
       const doneSets = sets.filter(s => s.done)
       for (let i = 0; i < doneSets.length; i++) {
         const s = doneSets[i]
-        const weightInKg = s.weight != null && s.weight !== '' ? toKg(parseFloat(s.weight) || 0) : null
+        const isRunType = ex.type === 'run'
+        const weightInKg = (!isRunType && s.weight != null && s.weight !== '') ? toKg(parseFloat(s.weight) || 0) : null
         await logSet({
           session_id: sessionId,
           exercise_id: ex.id,
           exercise_name: ex.name,
           exercise_type: ex.type,
           set_number: i + 1,
-          weight: weightInKg,
-          reps: parseInt(s.reps) || 0,
-          duration_seconds: ex.type === 'cardio' ? (parseInt(s.duration) || parseInt(s.reps) || 0) : null,
-          distance_metres: null,
+          weight: isRunType ? (s.heartRate ? parseFloat(s.heartRate) : null) : weightInKg,
+          reps: isRunType ? null : parseInt(s.reps) || 0,
+          duration_seconds: isRunType ? parseMmSs(s.duration) : ex.type === 'cardio' ? (parseInt(s.duration) || parseInt(s.reps) || 0) : null,
+          distance_metres: isRunType ? (s.distance ? parseFloat(s.distance) * 1000 : null) : null,
         })
       }
     }
@@ -529,6 +545,8 @@ export default function FreestyleWorkout() {
                     }}>
                       {isWeighted
                         ? `${toDisplay(s.weight)} ${unit} × ${s.reps}`
+                        : exerciseType === 'run'
+                        ? [s.duration_seconds != null ? `${Math.floor(s.duration_seconds / 60)}:${String(s.duration_seconds % 60).padStart(2, '0')}` : null, s.distance_metres ? `${(s.distance_metres / 1000).toFixed(1)}km` : null].filter(Boolean).join(' · ')
                         : exerciseType === 'cardio'
                         ? `${s.duration_seconds || s.reps}s`
                         : `${s.reps} reps`}
