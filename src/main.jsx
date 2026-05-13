@@ -4,9 +4,10 @@ import './styles/index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 
+// Unregister any previously installed service workers
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    for (const r of regs) r.unregister()
   })
 }
 
