@@ -191,7 +191,9 @@ export function AuthProvider({ children }) {
     if (DEV_BYPASS) return
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+      const u = session?.user ?? null
+      setUser(u)
+      if (u) seedExercises(u.id)
       setLoading(false)
     })
 
