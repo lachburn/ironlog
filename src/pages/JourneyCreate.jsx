@@ -99,12 +99,14 @@ export default function JourneyCreate() {
   // null | 'calendar' | { kind: 'type', day: n } | { kind: 'routine', day: n }
   const [openSheet, setOpenSheet] = useState(null)
 
+  const [saving, setSaving] = useState(false)
   const canSave = title.trim() && targetDate && Object.values(days).some(Boolean)
   const toggleDay = (i) => setDays(s => ({ ...s, [i]: !s[i] }))
 
-  const handleCreate = () => {
-    if (!canSave) return
-    createJourney({ title, goal, target_date: targetDate, days, types, routineLinks })
+  const handleCreate = async () => {
+    if (!canSave || saving) return
+    setSaving(true)
+    await createJourney({ title, goal, target_date: targetDate, days, types, routineLinks })
     navigate('/journeys')
   }
 
@@ -275,8 +277,8 @@ export default function JourneyCreate() {
           })}
         </div>
 
-        <button className="btn btn-primary" disabled={!canSave} onClick={handleCreate}>
-          Create Journey
+        <button className="btn btn-primary" disabled={!canSave || saving} onClick={handleCreate}>
+          {saving ? 'Creating…' : 'Create Journey'}
         </button>
       </div>
 

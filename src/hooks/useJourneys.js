@@ -1,18 +1,7 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
-const KEY = 'ironlog-journeys'
-
-function load() {
-  try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch { return [] }
-}
-function save(data) {
-  localStorage.setItem(KEY, JSON.stringify(data))
-}
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2)
-}
-
-// Build weekly journey items from days selection + types map
 function buildJourneyItems(startDate, targetDate, days, types, routineLinks) {
   const items = []
   const start = new Date(startDate)
@@ -21,10 +10,9 @@ function buildJourneyItems(startDate, targetDate, days, types, routineLinks) {
   end.setHours(23, 59, 59, 999)
   const current = new Date(start)
   while (current <= end) {
-    const dow = current.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
+    const dow = current.getDay()
     if (days[dow]) {
       items.push({
-        id: uid(),
         date: new Date(current).toISOString(),
         type: types[dow] || 'Workout',
         routine_id: routineLinks?.[dow] || null,
@@ -39,58 +27,79 @@ function buildJourneyItems(startDate, targetDate, days, types, routineLinks) {
 }
 
 export function useJourneys() {
-  const [journeys, setJourneys] = useState(load)
+  const { user } = useAuth()
+  const [journeys, setJourneys] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const createJourney = useCallback(({ title, goal, target_date, days, types, routineLinks }) => {
-    const today = new Date().toISOString()
-    const journey = {
-      id: uid(),
-      title,
-      goal,
-      target_date,
-      start_date: today,
-      created_at: today,
-      items: buildJourneyItems(today, target_date, days, types, routineLinks),
+  const fetchJourneys = useCallback(async () => {
+    if (!user) { setJourneys([]); setLoading(false); return }
+    const { data } = await supabase
+      .from('journeys')
+      .select('*, journey_items(*)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (data) {
+      setJourneys(data.map(j => ({
+        ...j,
+        items: (j.journey_items || []).sort((a, b) => new Date(a.date) - new Date(b.date)),
+      })))
     }
-    const next = [journey, ...load()]
-    save(next)
-    setJourneys(next)
-    return journey
-  }, [])
+    setLoading(false)
+  }, [user])
 
-  const toggleItem = useCallback((journeyId, itemId) => {
-    const next = load().map(j => {
-      if (j.id !== journeyId) return j
-      return {
+  useEffect(() => { fetchJourneys() }, [fetchJourneys])
+
+  const createJourney = useCallback(async ({ title, goal, target_date, days, types, routineLinks }) => {
+    if (!user) return null
+    const { data: journey, error } = await supabase
+      .from('journeys')
+      .insert({ user_id: user.id, title, goal, target_date, start_date: new Date().toISOString() })
+      .select()
+      .single()
+    if (error || !journey) return null
+
+    const rawItems = buildJourneyItems(journey.start_date, target_date, days, types, routineLinks)
+    const itemRows = rawItems.map(item => ({ journey_id: journey.id, ...item }))
+    const { data: items } = await supabase.from('journey_items').insert(itemRows).select()
+
+    const fullJourney = { ...journey, items: items || [] }
+    setJourneys(prev => [fullJourney, ...prev])
+    return fullJourney
+  }, [user])
+
+  const toggleItem = useCallback(async (journeyId, itemId) => {
+    const journey = journeys.find(j => j.id === journeyId)
+    const item = journey?.items.find(i => i.id === itemId)
+    if (!item) return
+    const { error } = await supabase
+      .from('journey_items')
+      .update({ completed: !item.completed })
+      .eq('id', itemId)
+    if (!error) {
+      setJourneys(prev => prev.map(j => j.id !== journeyId ? j : {
         ...j,
-        items: j.items.map(i =>
-          i.id === itemId ? { ...i, completed: !i.completed } : i
-        ),
-      }
-    })
-    save(next)
-    setJourneys(next)
-  }, [])
+        items: j.items.map(i => i.id === itemId ? { ...i, completed: !i.completed } : i),
+      }))
+    }
+  }, [journeys])
 
-  const linkItem = useCallback((journeyId, itemId, sessionId) => {
-    const next = load().map(j => {
-      if (j.id !== journeyId) return j
-      return {
+  const linkItem = useCallback(async (journeyId, itemId, sessionId) => {
+    const { error } = await supabase
+      .from('journey_items')
+      .update({ completed: true, linked_session_id: sessionId })
+      .eq('id', itemId)
+    if (!error) {
+      setJourneys(prev => prev.map(j => j.id !== journeyId ? j : {
         ...j,
-        items: j.items.map(i =>
-          i.id === itemId ? { ...i, linked_session_id: sessionId, completed: true } : i
-        ),
-      }
-    })
-    save(next)
-    setJourneys(next)
+        items: j.items.map(i => i.id === itemId ? { ...i, completed: true, linked_session_id: sessionId } : i),
+      }))
+    }
   }, [])
 
-  const deleteJourney = useCallback((journeyId) => {
-    const next = load().filter(j => j.id !== journeyId)
-    save(next)
-    setJourneys(next)
+  const deleteJourney = useCallback(async (journeyId) => {
+    await supabase.from('journeys').delete().eq('id', journeyId)
+    setJourneys(prev => prev.filter(j => j.id !== journeyId))
   }, [])
 
-  return { journeys, createJourney, toggleItem, linkItem, deleteJourney }
+  return { journeys, loading, createJourney, toggleItem, linkItem, deleteJourney }
 }
