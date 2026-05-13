@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useRoutines } from '../hooks/useRoutines'
 import { useWorkout } from '../hooks/useWorkout'
+import { useJourneys } from '../hooks/useJourneys'
 import { useWeightUnit } from '../context/WeightUnitContext'
 import { useActiveWorkout } from '../context/ActiveWorkoutContext'
 import BottomSheet from '../components/BottomSheet'
@@ -134,8 +135,12 @@ function FieldInline({ label, value, onChange, decimal, wide }) {
 export default function ActiveWorkout() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const journeyId = searchParams.get('journeyId')
+  const journeyItemId = searchParams.get('itemId')
   const { routines } = useRoutines()
   const { startSession, finishSession, cancelSession, logSet, getLastSets, saveProgress, getProgress } = useWorkout()
+  const { linkItem } = useJourneys()
   const { unit, toDisplay, toKg } = useWeightUnit()
   const { activeWorkout, setActiveWorkout, clearActiveWorkout } = useActiveWorkout()
 
@@ -297,6 +302,9 @@ export default function ActiveWorkout() {
       }
     }
     await finishSession(sessionId)
+    if (journeyId && journeyItemId) {
+      linkItem(journeyId, journeyItemId, sessionId)
+    }
     clearWorkoutData()
     navigate(`/history/${sessionId}`, { replace: true })
   }

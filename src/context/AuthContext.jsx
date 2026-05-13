@@ -153,6 +153,13 @@ const SEED_EXERCISES = [
   { name: 'Sled Push',                    type: 'cardio' },
   { name: 'Sled Pull',                    type: 'cardio' },
   { name: 'Swimming',                     type: 'cardio' },
+
+  // ── Running ─────────────────────────────────────────────────────────
+  { name: 'Long Run',                     type: 'run' },
+  { name: 'Tempo Run',                    type: 'run' },
+  { name: 'Interval Run',                 type: 'run' },
+  { name: 'Recovery Run',                 type: 'run' },
+  { name: 'Hill Repeat Run',              type: 'run' },
 ]
 
 async function seedExercises(userId) {

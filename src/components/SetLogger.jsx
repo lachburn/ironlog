@@ -4,18 +4,30 @@ import { Icon } from './Icon'
 export default function SetLogger({ setNumber, targetSets, exerciseType, initialWeight, initialReps, unit = 'kg', onComplete }) {
   const isBodyweight = exerciseType === 'bodyweight'
   const isCardio = exerciseType === 'cardio'
+  const isRun = exerciseType === 'run'
 
   const [weight, setWeight] = useState(initialWeight ?? '')
   const [reps, setReps] = useState(initialReps ?? '')
   const [duration, setDuration] = useState('')
   const [distance, setDistance] = useState('')
+  const [heartRate, setHeartRate] = useState('')
 
   useEffect(() => {
-    if (!isCardio && !isBodyweight) setWeight(initialWeight ?? '')
+    if (!isCardio && !isBodyweight && !isRun) setWeight(initialWeight ?? '')
     setReps(initialReps ?? '')
-  }, [initialWeight, initialReps, setNumber, isCardio, isBodyweight])
+  }, [initialWeight, initialReps, setNumber, isCardio, isBodyweight, isRun])
 
   const buildData = (isFailure) => {
+    if (isRun) {
+      const [min = 0, sec = 0] = duration.split(':').map(Number)
+      return {
+        weight: heartRate ? parseFloat(heartRate) : null,
+        reps: null,
+        duration_seconds: min * 60 + sec,
+        distance_metres: distance ? parseFloat(distance) * 1000 : null,
+        is_failure: isFailure,
+      }
+    }
     if (isCardio) {
       const [min = 0, sec = 0] = duration.split(':').map(Number)
       return {
@@ -35,7 +47,9 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
   const handleComplete = () => onComplete(buildData(false))
   const handleFailure = () => onComplete(buildData(true))
 
-  const canComplete = isCardio
+  const canComplete = isRun
+    ? duration.length > 0
+    : isCardio
     ? duration.length > 0
     : isBodyweight
     ? reps !== ''
@@ -52,7 +66,42 @@ export default function SetLogger({ setNumber, targetSets, exerciseType, initial
         Set {setNumber}{targetSets ? ` of ${targetSets}` : ''}
       </div>
 
-      {isCardio ? (
+      {isRun ? (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Duration (mm:ss)</div>
+            <input
+              type="text"
+              placeholder="0:00"
+              value={duration}
+              onChange={e => setDuration(e.target.value)}
+              style={{ textAlign: 'center', fontSize: 20, fontWeight: 600 }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Distance (km)</div>
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="—"
+              value={distance}
+              onChange={e => setDistance(e.target.value)}
+              style={{ textAlign: 'center', fontSize: 20, fontWeight: 600 }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Avg HR (bpm)</div>
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder="—"
+              value={heartRate}
+              onChange={e => setHeartRate(e.target.value)}
+              style={{ textAlign: 'center', fontSize: 20, fontWeight: 600 }}
+            />
+          </div>
+        </div>
+      ) : isCardio ? (
         <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Duration (mm:ss)</div>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useJourneys } from '../hooks/useJourneys'
 import { useHistory } from '../hooks/useHistory'
+import { useRoutines } from '../hooks/useRoutines'
 import { useWeekStart } from '../context/WeekStartContext'
 import BottomSheet from '../components/BottomSheet'
 import { Icon } from '../components/Icon'
@@ -90,28 +91,23 @@ function groupByWeek(journey, startOfWeek = 1) {
   return Array.from(groups.values()).sort((a, b) => a.weekNumber - b.weekNumber)
 }
 
-function JourneyItemRow({ item, onToggle, onLink, onOpenLinked, linked }) {
-  const past = new Date(item.date) < new Date()
+function JourneyItemRow({ item, linked, routineName, onAction, onViewSession }) {
   return (
     <div className="card" style={{
       padding: '12px 12px',
       display: 'flex', alignItems: 'center', gap: 12,
       border: '1px solid var(--border)',
     }}>
-      {/* Tick */}
-      <button
-        onClick={onToggle}
-        style={{
-          flexShrink: 0, width: 28, height: 28, borderRadius: 999,
-          background: item.completed ? 'var(--good)' : 'transparent',
-          border: item.completed ? 'none' : '1.5px solid var(--border-2)',
-          color: item.completed ? '#fff' : 'var(--muted)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', padding: 0,
-        }}
-      >
+      {/* Completion circle — visual only, filled only when a session is linked */}
+      <div style={{
+        flexShrink: 0, width: 28, height: 28, borderRadius: 999,
+        background: item.completed ? 'var(--good)' : 'transparent',
+        border: item.completed ? 'none' : '1.5px solid var(--border-2)',
+        color: '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
         {item.completed && <Icon name="check" size={16} stroke={2.4} />}
-      </button>
+      </div>
 
       {/* Date tile */}
       <div style={{
@@ -134,44 +130,53 @@ function JourneyItemRow({ item, onToggle, onLink, onOpenLinked, linked }) {
           fontWeight: 600, fontSize: 15,
           color: item.completed ? 'var(--muted)' : 'var(--ink)',
           textDecoration: item.completed ? 'line-through' : 'none',
+          display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap',
         }}>
           {item.type}
+          {routineName && (
+            <span style={{ fontStyle: 'italic', fontWeight: 400, color: 'var(--muted)', fontSize: 13 }}>
+              {routineName}
+            </span>
+          )}
         </div>
-        {linked ? (
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Icon name="link" size={11} /> Linked · {linked.routine_name || 'Workout'}
+        {linked && (
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+            {linked.routine_name || 'Workout'} · {fmtDur(linked.started_at, linked.completed_at)}
           </div>
-        ) : item.details ? (
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{item.details}</div>
-        ) : null}
+        )}
       </div>
 
-      {/* Link button (past, not done, no link) */}
-      {!item.completed && past && !linked && (
+      {/* Right action — arrow when done, Start workout when pending */}
+      {item.completed ? (
         <button
-          onClick={onLink}
+          onClick={() => onViewSession(item.linked_session_id)}
           style={{
-            flexShrink: 0, background: 'var(--surface-2)', color: 'var(--ink-2)',
-            border: 'none', borderRadius: 8, padding: '6px 8px',
-            display: 'flex', alignItems: 'center', gap: 4,
-            fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            flexShrink: 0, background: 'none', border: 'none',
+            cursor: 'pointer', color: 'var(--ink-2)',
+            padding: '7px 4px', display: 'flex', alignItems: 'center',
           }}
         >
-          <Icon name="link" size={12} />
+          <Icon name="chev-r" size={18} />
         </button>
-      )}
-
-      {/* Arrow if linked — tap to open that session */}
-      {linked && (
+      ) : (
         <button
-          onClick={(e) => { e.stopPropagation(); onOpenLinked(linked.id) }}
+          onClick={() => onAction(item)}
           style={{
-            flexShrink: 0, background: 'transparent', border: 'none',
-            cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center',
-            color: 'var(--faint)',
+            flexShrink: 0,
+            background: 'var(--accent)',
+            color: 'var(--bg)',
+            border: 'none',
+            borderRadius: 8,
+            padding: '7px 10px',
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            whiteSpace: 'nowrap',
+            letterSpacing: '-0.01em',
           }}
         >
-          <Icon name="chev-r" size={16} />
+          Start workout
         </button>
       )}
     </div>
@@ -181,10 +186,18 @@ function JourneyItemRow({ item, onToggle, onLink, onOpenLinked, linked }) {
 export default function JourneyDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { journeys, toggleItem, linkItem } = useJourneys()
+  const { journeys, linkItem, deleteJourney } = useJourneys()
   const { sessions } = useHistory()
+  const { routines } = useRoutines()
   const { weekStart } = useWeekStart()
-  const [linkingId, setLinkingId] = useState(null)
+
+  // Action sheet state
+  const [actionItem, setActionItem] = useState(null)   // the item being actioned
+  const [sheetMode, setSheetMode] = useState('menu')   // 'menu' | 'sessions' | 'routines'
+
+  // Delete sheet state
+  const [showDeleteSheet, setShowDeleteSheet] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const journey = journeys.find(j => j.id === id)
 
@@ -201,6 +214,35 @@ export default function JourneyDetail() {
   const total = journey.items.length
   const daysLeft = daysUntil(journey.target_date)
   const weeks = groupByWeek(journey, weekStart)
+
+  const goalDay = new Date(journey.target_date).getDate()
+  const goalMonth = new Date(journey.target_date).toLocaleDateString('en-AU', { month: 'short' })
+
+  const openAction = (item) => {
+    setActionItem(item)
+    setSheetMode('menu')
+  }
+
+  const closeSheet = () => setActionItem(null)
+
+  const handleStartWorkout = (routineId) => {
+    const currentItem = actionItem
+    closeSheet()
+    navigate(`/workout/${routineId}?journeyId=${journey.id}&itemId=${currentItem.id}`)
+  }
+
+  const handleLinkSession = (session) => {
+    linkItem(journey.id, actionItem.id, session.id)
+    closeSheet()
+  }
+
+  const handleDeleteJourney = async () => {
+    setDeleting(true)
+    deleteJourney(id)
+    navigate('/journeys', { replace: true })
+  }
+
+  const hasRoutine = actionItem?.routine_id
 
   return (
     <div style={{
@@ -222,6 +264,17 @@ export default function JourneyDetail() {
             <Icon name="chev-l" size={18} />
           </button>
           <div style={{ flex: 1 }} />
+          <button
+            onClick={() => setShowDeleteSheet(true)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              width: 36, height: 36, borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--danger)', padding: 0,
+            }}
+          >
+            <Icon name="trash" size={16} />
+          </button>
         </div>
       </div>
 
@@ -254,19 +307,32 @@ export default function JourneyDetail() {
                 {completed}<span style={{ color: 'var(--faint)', fontSize: 18 }}>/{total}</span>
               </div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>workouts done</div>
-              <div style={{ display: 'flex', gap: 16, marginTop: 14 }}>
-                <div>
-                  <div className="mono" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1, color: 'var(--ink)' }}>
-                    {daysLeft > 0 ? daysLeft : 0}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3, letterSpacing: '0.04em', textTransform: 'uppercase' }}>days left</div>
+              <div style={{ marginTop: 14 }}>
+                <div className="mono" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1, color: 'var(--ink)' }}>
+                  {daysLeft > 0 ? daysLeft : 0}
                 </div>
-                <div>
-                  <div className="mono" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1, color: 'var(--ink)' }}>
-                    {fmtDate(journey.target_date)}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3, letterSpacing: '0.04em', textTransform: 'uppercase' }}>goal date</div>
-                </div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3, letterSpacing: '0.04em', textTransform: 'uppercase' }}>days left</div>
+              </div>
+            </div>
+
+            {/* Goal date — right side, large */}
+            <div style={{
+              flexShrink: 0, textAlign: 'center',
+              borderLeft: '1px solid var(--border)', paddingLeft: 16,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              alignSelf: 'stretch',
+            }}>
+              <div className="mono" style={{
+                fontSize: 36, fontWeight: 700, lineHeight: 1,
+                letterSpacing: '-0.04em', color: 'var(--ink)',
+              }}>
+                {goalDay}
+              </div>
+              <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--ink)', marginTop: 2, letterSpacing: '-0.01em' }}>
+                {goalMonth}
+              </div>
+              <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Goal
               </div>
             </div>
           </div>
@@ -303,14 +369,17 @@ export default function JourneyDetail() {
                   const linked = item.linked_session_id
                     ? sessions.find(s => s.id === item.linked_session_id)
                     : null
+                  const routineName = item.routine_id
+                    ? routines.find(r => r.id === item.routine_id)?.name
+                    : null
                   return (
                     <JourneyItemRow
                       key={item.id}
                       item={item}
-                      onToggle={() => toggleItem(journey.id, item.id)}
-                      onLink={() => setLinkingId(item.id)}
-                      onOpenLinked={(sid) => navigate(`/history/${sid}`)}
                       linked={linked}
+                      routineName={routineName}
+                      onAction={openAction}
+                      onViewSession={(sessionId) => navigate(`/history/${sessionId}`)}
                     />
                   )
                 })}
@@ -320,39 +389,151 @@ export default function JourneyDetail() {
         })}
       </div>
 
-      {/* Link-workout bottom sheet */}
-      {linkingId && (
-        <BottomSheet open={true} onClose={() => setLinkingId(null)} title="Link a workout">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '60vh', overflowY: 'auto' }}>
-            {sessions.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--muted)', fontSize: 14 }}>
-                No workouts to link yet.
-              </div>
-            ) : sessions.slice(0, 20).map(s => (
+      {/* Action bottom sheet */}
+      {actionItem && (
+        <BottomSheet open={true} onClose={closeSheet} title={actionItem.type}>
+
+          {/* ── Menu view ── */}
+          {sheetMode === 'menu' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {hasRoutine ? (
+                <>
+                  <button className="btn btn-primary" onClick={() => handleStartWorkout(actionItem.routine_id)}>
+                    <Icon name="play" size={14} /> Start workout
+                  </button>
+                  <button className="btn btn-ghost" onClick={() => setSheetMode('sessions')}>
+                    Select from finished workout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="btn btn-primary" onClick={() => setSheetMode('routines')}>
+                    <Icon name="play" size={14} /> Select workout
+                  </button>
+                  <button className="btn btn-ghost" onClick={() => setSheetMode('sessions')}>
+                    Select from finished workout
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Finished sessions list ── */}
+          {sheetMode === 'sessions' && (
+            <>
               <button
-                key={s.id}
-                onClick={() => {
-                  linkItem(journey.id, linkingId, s.id)
-                  setLinkingId(null)
-                }}
-                style={{
-                  width: '100%', textAlign: 'left',
-                  background: 'var(--surface-2)', border: 'none', cursor: 'pointer',
-                  padding: '12px 14px', borderRadius: 12,
-                  display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit',
-                }}
+                onClick={() => setSheetMode('menu')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '0 0 12px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontFamily: 'inherit' }}
               >
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>{s.routine_name || 'Once-off'}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-                    {new Date(s.completed_at).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
-                    {' · '}{fmtDur(s.started_at, s.completed_at)}
-                  </div>
-                </div>
-                <Icon name="link" size={14} style={{ color: 'var(--muted)' }} />
+                <Icon name="chev-l" size={14} /> Back
               </button>
-            ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '52vh', overflowY: 'auto' }}>
+                {sessions.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--muted)', fontSize: 14 }}>
+                    No finished workouts yet.
+                  </div>
+                ) : sessions.slice(0, 30).map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => handleLinkSession(s)}
+                    style={{
+                      width: '100%', textAlign: 'left',
+                      background: 'var(--surface-2)', border: 'none', cursor: 'pointer',
+                      padding: '12px 14px', borderRadius: 12,
+                      display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit',
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>{s.routine_name || 'Once-off'}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                        {new Date(s.completed_at).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
+                        {' · '}{fmtDur(s.started_at, s.completed_at)}
+                      </div>
+                    </div>
+                    <Icon name="chev-r" size={14} style={{ color: 'var(--faint)' }} />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* ── Routine picker ── */}
+          {sheetMode === 'routines' && (
+            <>
+              <button
+                onClick={() => setSheetMode('menu')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '0 0 12px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontFamily: 'inherit' }}
+              >
+                <Icon name="chev-l" size={14} /> Back
+              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '52vh', overflowY: 'auto' }}>
+                {routines.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => handleStartWorkout(r.id)}
+                    style={{
+                      width: '100%', textAlign: 'left',
+                      background: 'var(--surface-2)', border: 'none', cursor: 'pointer',
+                      padding: '12px 14px', borderRadius: 12,
+                      display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit',
+                    }}
+                  >
+                    <div style={{ fontSize: 22, width: 36, textAlign: 'center', flexShrink: 0 }}>{r.emoji || '🏋️'}</div>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>{r.name}</div>
+                  </button>
+                ))}
+                <button
+                  onClick={() => handleStartWorkout('freestyle')}
+                  style={{
+                    width: '100%', textAlign: 'left',
+                    background: 'var(--surface-2)', border: '1px dashed var(--border-2)', cursor: 'pointer',
+                    padding: '12px 14px', borderRadius: 12,
+                    display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit',
+                  }}
+                >
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                    background: 'var(--surface)', border: '1px solid var(--border)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'var(--ink)',
+                  }}>
+                    <Icon name="sparkle" size={16} />
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>Once-off workout</div>
+                </button>
+              </div>
+            </>
+          )}
+
+        </BottomSheet>
+      )}
+
+      {/* Delete journey sheet */}
+      {showDeleteSheet && (
+        <BottomSheet open={showDeleteSheet} onClose={() => !deleting && setShowDeleteSheet(false)}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
+              Delete this journey?
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.5 }}>
+              <strong>{journey.title}</strong> and all its progress will be permanently deleted. This cannot be undone.
+            </div>
           </div>
+          <button
+            className="btn btn-danger"
+            onClick={handleDeleteJourney}
+            disabled={deleting}
+          >
+            {deleting ? 'Deleting…' : 'Delete journey'}
+          </button>
+          <button
+            className="btn btn-ghost"
+            onClick={() => setShowDeleteSheet(false)}
+            disabled={deleting}
+            style={{ marginTop: 8 }}
+          >
+            Cancel
+          </button>
         </BottomSheet>
       )}
     </div>

@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { Icon } from './Icon'
 
-const TYPES = ['weighted', 'dumbbell', 'bodyweight', 'cardio']
-const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
+const TYPES = ['weighted', 'dumbbell', 'bodyweight', 'cardio', 'run']
+const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio', run: 'Run' }
 
 const TYPE_COLORS = {
   weighted: 'var(--muted)',

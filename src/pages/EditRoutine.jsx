@@ -5,7 +5,7 @@ import ExerciseSearchModal from '../components/ExerciseSearchModal'
 import BottomSheet from '../components/BottomSheet'
 import { Icon } from '../components/Icon'
 
-const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio' }
+const TYPE_LABELS = { weighted: 'Weighted', dumbbell: 'Dumbbell', bodyweight: 'Bodyweight', cardio: 'Cardio', run: 'Run' }
 
 function TypeChip({ type }) {
   return (
@@ -183,6 +183,7 @@ export default function EditRoutine() {
 
   const cfgType = configuringExercise?.exercise?.type
   const cfgIsCardio = cfgType === 'cardio'
+  const cfgIsRun = cfgType === 'run'
   const cfgShowWeight = cfgType === 'weighted' || cfgType === 'dumbbell'
 
   return (
@@ -484,45 +485,51 @@ export default function EditRoutine() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <div style={{ flex: 1 }}>
-              <div className="eyebrow" style={{ marginBottom: 4 }}>Sets</div>
-              <input
-                type="number"
-                inputMode="numeric"
-                min="1"
-                value={configuringExercise.sets}
-                onChange={e => setConfiguringExercise(prev => ({ ...prev, sets: e.target.value }))}
-                style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
-              />
+          {cfgIsRun ? (
+            <div style={{ padding: '12px 0 16px', color: 'var(--muted)', fontSize: 13 }}>
+              Run exercises log duration, distance, and heart rate per session — no set defaults needed.
             </div>
-            {!cfgIsCardio && (
+          ) : (
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
               <div style={{ flex: 1 }}>
-                <div className="eyebrow" style={{ marginBottom: 4 }}>Reps</div>
+                <div className="eyebrow" style={{ marginBottom: 4 }}>Sets</div>
                 <input
                   type="number"
                   inputMode="numeric"
                   min="1"
-                  value={configuringExercise.reps}
-                  onChange={e => setConfiguringExercise(prev => ({ ...prev, reps: e.target.value }))}
+                  value={configuringExercise.sets}
+                  onChange={e => setConfiguringExercise(prev => ({ ...prev, sets: e.target.value }))}
                   style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
                 />
               </div>
-            )}
-            {cfgShowWeight && (
-              <div style={{ flex: 1 }}>
-                <div className="eyebrow" style={{ marginBottom: 4 }}>kg</div>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  value={configuringExercise.weight}
-                  onChange={e => setConfiguringExercise(prev => ({ ...prev, weight: e.target.value }))}
-                  style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
-                />
-              </div>
-            )}
-          </div>
+              {!cfgIsCardio && (
+                <div style={{ flex: 1 }}>
+                  <div className="eyebrow" style={{ marginBottom: 4 }}>Reps</div>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    value={configuringExercise.reps}
+                    onChange={e => setConfiguringExercise(prev => ({ ...prev, reps: e.target.value }))}
+                    style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
+                  />
+                </div>
+              )}
+              {cfgShowWeight && (
+                <div style={{ flex: 1 }}>
+                  <div className="eyebrow" style={{ marginBottom: 4 }}>kg</div>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    value={configuringExercise.weight}
+                    onChange={e => setConfiguringExercise(prev => ({ ...prev, weight: e.target.value }))}
+                    style={{ textAlign: 'center', fontSize: 22, fontWeight: 600 }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <button className="btn btn-primary" onClick={handleConfigConfirm}>
             {configuringExercise.editIndex === null ? 'Add exercise' : 'Save changes'}

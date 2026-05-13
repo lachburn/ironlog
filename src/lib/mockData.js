@@ -32,6 +32,11 @@ export const DEV_STORE = {
     { id: 'ex-16', user_id: D, name: 'Treadmill',           type: 'cardio',     is_global: true },
     { id: 'ex-17', user_id: D, name: 'Dips',                type: 'bodyweight', is_global: true },
     { id: 'ex-18', user_id: D, name: 'Cable Face Pull',     type: 'weighted',   is_global: true },
+    { id: 'ex-19', user_id: D, name: 'Long Run',            type: 'run',        is_global: true },
+    { id: 'ex-20', user_id: D, name: 'Tempo Run',           type: 'run',        is_global: true },
+    { id: 'ex-21', user_id: D, name: 'Interval Run',        type: 'run',        is_global: true },
+    { id: 'ex-22', user_id: D, name: 'Recovery Run',        type: 'run',        is_global: true },
+    { id: 'ex-23', user_id: D, name: 'Hill Repeat Run',     type: 'run',        is_global: true },
   ],
 
   routines: [
