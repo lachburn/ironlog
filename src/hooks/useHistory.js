@@ -40,7 +40,7 @@ export function useHistory() {
 
   useEffect(() => { fetchSessions() }, [fetchSessions])
 
-  // Fetch a single session + its sets
+  // Fetch a single session + its sets (or activity log for activity sessions)
   const fetchSession = async (id) => {
     const { data: session } = await supabase
       .from('workout_sessions')
@@ -48,13 +48,22 @@ export function useHistory() {
       .eq('id', id)
       .single()
 
+    if (session?.session_type === 'activity') {
+      const { data: activityLog } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('session_id', id)
+        .single()
+      return { session, sets: [], activityLog: activityLog || null }
+    }
+
     const { data: sets } = await supabase
       .from('logged_sets')
       .select('*')
       .eq('session_id', id)
       .order('completed_at')
 
-    return { session, sets: sets || [] }
+    return { session, sets: sets || [], activityLog: null }
   }
 
   // Fetch all exercises the user has ever logged, with aggregate stats
@@ -159,6 +168,7 @@ export function useHistory() {
 
   const deleteWorkout = async (sessionId) => {
     await supabase.from('logged_sets').delete().eq('session_id', sessionId)
+    await supabase.from('activity_logs').delete().eq('session_id', sessionId)
     const { error } = await supabase.from('workout_sessions').delete().eq('id', sessionId)
     if (!error) {
       _sessionsCache = null

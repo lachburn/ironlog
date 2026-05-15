@@ -25,6 +25,8 @@ function resolveJoins(row, table, selectStr) {
     } else if (table === 'workout_sessions' && joinTable === 'routines') {
       const routine = (DEV_STORE.routines || []).find(r => r.id === row.routine_id)
       joined.routines = routine ? { emoji: routine.emoji } : null
+    } else if (table === 'journeys' && joinTable === 'journey_items') {
+      joined.journey_items = (DEV_STORE.journey_items || []).filter(ji => ji.journey_id === row.id)
     }
   }
   return joined

@@ -32,11 +32,6 @@ export const DEV_STORE = {
     { id: 'ex-16', user_id: D, name: 'Treadmill',           type: 'cardio',     is_global: true },
     { id: 'ex-17', user_id: D, name: 'Dips',                type: 'bodyweight', is_global: true },
     { id: 'ex-18', user_id: D, name: 'Cable Face Pull',     type: 'weighted',   is_global: true },
-    { id: 'ex-19', user_id: D, name: 'Long Run',            type: 'run',        is_global: true },
-    { id: 'ex-20', user_id: D, name: 'Tempo Run',           type: 'run',        is_global: true },
-    { id: 'ex-21', user_id: D, name: 'Interval Run',        type: 'run',        is_global: true },
-    { id: 'ex-22', user_id: D, name: 'Recovery Run',        type: 'run',        is_global: true },
-    { id: 'ex-23', user_id: D, name: 'Hill Repeat Run',     type: 'run',        is_global: true },
   ],
 
   routines: [
@@ -66,14 +61,59 @@ export const DEV_STORE = {
     { id: 're-15', routine_id: 'r-3', exercise_id: 'ex-14', display_order: 3, default_sets: 3, default_reps: 12, default_weight: 50  },
   ],
 
+  activities: [
+    { id: 'act-1',  user_id: D, name: 'Run',        type: 'run',   is_global: true },
+    { id: 'act-2',  user_id: D, name: 'Tennis',      type: 'sport', is_global: true },
+    { id: 'act-3',  user_id: D, name: 'Swimming',    type: 'sport', is_global: true },
+    { id: 'act-4',  user_id: D, name: 'Cycling',     type: 'sport', is_global: true },
+    { id: 'act-5',  user_id: D, name: 'Football',    type: 'sport', is_global: true },
+    { id: 'act-6',  user_id: D, name: 'Basketball',  type: 'sport', is_global: true },
+    { id: 'act-7',  user_id: D, name: 'Yoga',        type: 'sport', is_global: true },
+    { id: 'act-8',  user_id: D, name: 'Hiking',      type: 'sport', is_global: true },
+    { id: 'act-9',  user_id: D, name: 'Pilates',     type: 'sport', is_global: true },
+    { id: 'act-10', user_id: D, name: 'Boxing',      type: 'sport', is_global: true },
+  ],
+
   workout_sessions: [
-    { id: 's-1', user_id: D, routine_id: 'r-1', routine_name: 'Push Day', started_at: daysAgoAt(1, 9),  completed_at: daysAgoAt(1, 10) },
-    { id: 's-2', user_id: D, routine_id: 'r-2', routine_name: 'Pull Day', started_at: daysAgoAt(3, 9),  completed_at: daysAgoAt(3, 10) },
-    { id: 's-3', user_id: D, routine_id: 'r-3', routine_name: 'Leg Day',  started_at: daysAgoAt(6, 9),  completed_at: daysAgoAt(6, 10) },
-    { id: 's-4', user_id: D, routine_id: 'r-1', routine_name: 'Push Day', started_at: daysAgoAt(9, 9),  completed_at: daysAgoAt(9, 10) },
-    { id: 's-5', user_id: D, routine_id: 'r-2', routine_name: 'Pull Day', started_at: daysAgoAt(12, 9), completed_at: daysAgoAt(12, 10) },
-    { id: 's-6', user_id: D, routine_id: 'r-3', routine_name: 'Leg Day',  started_at: daysAgoAt(15, 9), completed_at: daysAgoAt(15, 10) },
-    { id: 's-7', user_id: D, routine_id: 'r-1', routine_name: 'Push Day', started_at: daysAgoAt(18, 9), completed_at: daysAgoAt(18, 10) },
+    { id: 's-1',  user_id: D, routine_id: 'r-1', routine_name: 'Push Day', session_type: 'workout', started_at: daysAgoAt(1, 9),  completed_at: daysAgoAt(1, 10) },
+    { id: 's-2',  user_id: D, routine_id: 'r-2', routine_name: 'Pull Day', session_type: 'workout', started_at: daysAgoAt(3, 9),  completed_at: daysAgoAt(3, 10) },
+    { id: 's-8',  user_id: D, routine_id: null,   routine_name: 'Tennis',   session_type: 'activity', started_at: daysAgoAt(4, 16), completed_at: daysAgoAt(4, 17) },
+    { id: 's-3',  user_id: D, routine_id: 'r-3', routine_name: 'Leg Day',  session_type: 'workout', started_at: daysAgoAt(6, 9),  completed_at: daysAgoAt(6, 10) },
+    { id: 's-9',  user_id: D, routine_id: null,   routine_name: 'Run',      session_type: 'activity', started_at: daysAgoAt(7, 7),  completed_at: daysAgoAt(7, 8) },
+    { id: 's-4',  user_id: D, routine_id: 'r-1', routine_name: 'Push Day', session_type: 'workout', started_at: daysAgoAt(9, 9),  completed_at: daysAgoAt(9, 10) },
+    { id: 's-5',  user_id: D, routine_id: 'r-2', routine_name: 'Pull Day', session_type: 'workout', started_at: daysAgoAt(12, 9), completed_at: daysAgoAt(12, 10) },
+    { id: 's-10', user_id: D, routine_id: null,   routine_name: 'Swimming', session_type: 'activity', started_at: daysAgoAt(13, 8), completed_at: daysAgoAt(13, 9) },
+    { id: 's-6',  user_id: D, routine_id: 'r-3', routine_name: 'Leg Day',  session_type: 'workout', started_at: daysAgoAt(15, 9), completed_at: daysAgoAt(15, 10) },
+    { id: 's-7',  user_id: D, routine_id: 'r-1', routine_name: 'Push Day', session_type: 'workout', started_at: daysAgoAt(18, 9), completed_at: daysAgoAt(18, 10) },
+  ],
+
+  journeys: [
+    {
+      id: 'j-1', user_id: D, title: 'Half Marathon Prep', goal: 'Sub 1:45',
+      start_date: daysAgo(14), target_date: '2026-08-14T00:00:00.000Z',
+      created_at: daysAgo(14),
+    },
+  ],
+
+  journey_items: [
+    // Week 1 (Mon/Wed/Sat pattern)
+    { id: 'ji-1',  journey_id: 'j-1', date: daysAgoAt(13, 6), type: 'Tempo Run',  routine_id: null, activity_id: 'act-1', details: '', completed: true,  linked_session_id: 's-9' },
+    { id: 'ji-2',  journey_id: 'j-1', date: daysAgoAt(11, 6), type: 'Intervals',  routine_id: null, activity_id: 'act-1', details: '', completed: true,  linked_session_id: null  },
+    { id: 'ji-3',  journey_id: 'j-1', date: daysAgoAt(8,  6), type: 'Long Run',   routine_id: null, activity_id: 'act-1', details: '', completed: true,  linked_session_id: null  },
+    // Week 2
+    { id: 'ji-4',  journey_id: 'j-1', date: daysAgoAt(6,  6), type: 'Tempo Run',  routine_id: 'r-1', activity_id: null,   details: '', completed: true,  linked_session_id: 's-3' },
+    { id: 'ji-5',  journey_id: 'j-1', date: daysAgoAt(4,  6), type: 'Recovery',   routine_id: null, activity_id: 'act-1', details: '', completed: false, linked_session_id: null  },
+    { id: 'ji-6',  journey_id: 'j-1', date: daysAgoAt(1,  6), type: 'Long Run',   routine_id: null, activity_id: 'act-1', details: '', completed: false, linked_session_id: null  },
+    // Week 3 (upcoming)
+    { id: 'ji-7',  journey_id: 'j-1', date: daysAgoAt(-1, 6), type: 'Tempo Run',  routine_id: null, activity_id: 'act-1', details: '', completed: false, linked_session_id: null  },
+    { id: 'ji-8',  journey_id: 'j-1', date: daysAgoAt(-3, 6), type: 'Strength',   routine_id: 'r-2', activity_id: null,   details: '', completed: false, linked_session_id: null  },
+    { id: 'ji-9',  journey_id: 'j-1', date: daysAgoAt(-6, 6), type: 'Long Run',   routine_id: null, activity_id: 'act-1', details: '', completed: false, linked_session_id: null  },
+  ],
+
+  activity_logs: [
+    { id: 'al-1', session_id: 's-8',  activity_id: 'act-2', activity_name: 'Tennis',   activity_type: 'sport', duration_seconds: 3600, avg_heart_rate: 145, calories: 520,  distance_metres: null },
+    { id: 'al-2', session_id: 's-9',  activity_id: 'act-1', activity_name: 'Run',      activity_type: 'run',   duration_seconds: 2700, avg_heart_rate: 158, calories: null, distance_metres: 6500 },
+    { id: 'al-3', session_id: 's-10', activity_id: 'act-3', activity_name: 'Swimming', activity_type: 'sport', duration_seconds: 2400, avg_heart_rate: 135, calories: 380,  distance_metres: null },
   ],
 
   logged_sets: [

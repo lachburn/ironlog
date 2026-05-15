@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useJourneys } from '../hooks/useJourneys'
 import { useHistory } from '../hooks/useHistory'
 import { useRoutines } from '../hooks/useRoutines'
 import { useWeekStart } from '../context/WeekStartContext'
+import { supabase } from '../lib/supabase'
 import BottomSheet from '../components/BottomSheet'
 import { Icon } from '../components/Icon'
 
@@ -176,7 +177,7 @@ function JourneyItemRow({ item, linked, routineName, onAction, onViewSession }) 
             letterSpacing: '-0.01em',
           }}
         >
-          Start workout
+          Start
         </button>
       )}
     </div>
@@ -190,6 +191,13 @@ export default function JourneyDetail() {
   const { sessions } = useHistory()
   const { routines } = useRoutines()
   const { weekStart } = useWeekStart()
+  const [activities, setActivities] = useState([])
+
+  useEffect(() => {
+    supabase.from('activities').select('*').then(({ data }) => {
+      if (data) setActivities(data)
+    })
+  }, [])
 
   // Action sheet state
   const [actionItem, setActionItem] = useState(null)   // the item being actioned
@@ -231,6 +239,12 @@ export default function JourneyDetail() {
     navigate(`/workout/${routineId}?journeyId=${journey.id}&itemId=${currentItem.id}`)
   }
 
+  const handleStartActivity = (activity) => {
+    const currentItem = actionItem
+    closeSheet()
+    navigate('/activity/log', { state: { activity, journeyId: journey.id, journeyItemId: currentItem?.id } })
+  }
+
   const handleLinkSession = (session) => {
     linkItem(journey.id, actionItem.id, session.id)
     closeSheet()
@@ -243,6 +257,8 @@ export default function JourneyDetail() {
   }
 
   const hasRoutine = actionItem?.routine_id
+  const hasActivity = actionItem?.activity_id
+  const hasLinked = hasRoutine || hasActivity
 
   return (
     <div style={{
@@ -264,6 +280,17 @@ export default function JourneyDetail() {
             <Icon name="chev-l" size={18} />
           </button>
           <div style={{ flex: 1 }} />
+          <button
+            onClick={() => navigate(`/journeys/${id}/edit`)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              width: 36, height: 36, borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--ink)', padding: 0,
+            }}
+          >
+            <Icon name="edit" size={16} />
+          </button>
           <button
             onClick={() => setShowDeleteSheet(true)}
             style={{
@@ -369,15 +396,17 @@ export default function JourneyDetail() {
                   const linked = item.linked_session_id
                     ? sessions.find(s => s.id === item.linked_session_id)
                     : null
-                  const routineName = item.routine_id
+                  const linkedName = item.routine_id
                     ? routines.find(r => r.id === item.routine_id)?.name
+                    : item.activity_id
+                    ? activities.find(a => a.id === item.activity_id)?.name
                     : null
                   return (
                     <JourneyItemRow
                       key={item.id}
                       item={item}
                       linked={linked}
-                      routineName={routineName}
+                      routineName={linkedName}
                       onAction={openAction}
                       onViewSession={(sessionId) => navigate(`/history/${sessionId}`)}
                     />
@@ -396,22 +425,31 @@ export default function JourneyDetail() {
           {/* ── Menu view ── */}
           {sheetMode === 'menu' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {hasRoutine ? (
+              {hasLinked ? (
                 <>
-                  <button className="btn btn-primary" onClick={() => handleStartWorkout(actionItem.routine_id)}>
-                    <Icon name="play" size={14} /> Start workout
-                  </button>
+                  {hasRoutine ? (
+                    <button className="btn btn-primary" onClick={() => handleStartWorkout(actionItem.routine_id)}>
+                      <Icon name="play" size={14} /> Start workout
+                    </button>
+                  ) : (
+                    <button className="btn btn-primary" onClick={() => {
+                      const act = activities.find(a => a.id === actionItem.activity_id)
+                      if (act) handleStartActivity(act)
+                    }}>
+                      <Icon name="play" size={14} /> Start activity
+                    </button>
+                  )}
                   <button className="btn btn-ghost" onClick={() => setSheetMode('sessions')}>
-                    Select from finished workout
+                    Select from finished activity
                   </button>
                 </>
               ) : (
                 <>
-                  <button className="btn btn-primary" onClick={() => setSheetMode('routines')}>
-                    <Icon name="play" size={14} /> Select workout
+                  <button className="btn btn-primary" onClick={() => setSheetMode('picker')}>
+                    <Icon name="play" size={14} /> Select activity
                   </button>
                   <button className="btn btn-ghost" onClick={() => setSheetMode('sessions')}>
-                    Select from finished workout
+                    Select from finished activity
                   </button>
                 </>
               )}
@@ -430,7 +468,7 @@ export default function JourneyDetail() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '52vh', overflowY: 'auto' }}>
                 {sessions.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--muted)', fontSize: 14 }}>
-                    No finished workouts yet.
+                    No finished activities yet.
                   </div>
                 ) : sessions.slice(0, 30).map(s => (
                   <button
@@ -457,50 +495,96 @@ export default function JourneyDetail() {
             </>
           )}
 
-          {/* ── Routine picker ── */}
-          {sheetMode === 'routines' && (
+          {/* ── Combined workout / activity picker ── */}
+          {sheetMode === 'picker' && (
             <>
               <button
                 onClick={() => setSheetMode('menu')}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '0 0 12px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontFamily: 'inherit' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '0 0 4px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontFamily: 'inherit' }}
               >
                 <Icon name="chev-l" size={14} /> Back
               </button>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '52vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '56vh', overflowY: 'auto' }}>
+
+                {/* Workouts section */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 4px 4px' }}>
+                  Workouts
+                </div>
                 {routines.map(r => (
                   <button
                     key={r.id}
                     onClick={() => handleStartWorkout(r.id)}
                     style={{
-                      width: '100%', textAlign: 'left',
-                      background: 'var(--surface-2)', border: 'none', cursor: 'pointer',
-                      padding: '12px 14px', borderRadius: 12,
-                      display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit',
+                      width: '100%', textAlign: 'left', background: 'none', border: 'none',
+                      padding: '12px 4px', cursor: 'pointer', fontFamily: 'inherit',
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      borderBottom: '1px solid var(--border)',
                     }}
                   >
-                    <div style={{ fontSize: 22, width: 36, textAlign: 'center', flexShrink: 0 }}>{r.emoji || '🏋️'}</div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>{r.name}</div>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+                      background: 'var(--surface-2)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 16,
+                    }}>
+                      {r.emoji || '🏋️'}
+                    </div>
+                    <div style={{ flex: 1, fontSize: 15, fontWeight: 400, color: 'var(--ink)' }}>{r.name}</div>
                   </button>
                 ))}
                 <button
                   onClick={() => handleStartWorkout('freestyle')}
                   style={{
-                    width: '100%', textAlign: 'left',
-                    background: 'var(--surface-2)', border: '1px dashed var(--border-2)', cursor: 'pointer',
-                    padding: '12px 14px', borderRadius: 12,
-                    display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'inherit',
+                    width: '100%', textAlign: 'left', background: 'none', border: 'none',
+                    padding: '12px 4px', cursor: 'pointer', fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    borderBottom: '1px solid var(--border)',
                   }}
                 >
                   <div style={{
-                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    background: 'var(--surface)', border: '1px solid var(--border)',
+                    width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+                    background: 'var(--surface-2)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'var(--ink)',
                   }}>
-                    <Icon name="sparkle" size={16} />
+                    <Icon name="sparkle" size={14} />
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)' }}>Once-off workout</div>
+                  <div style={{ flex: 1, fontSize: 15, fontWeight: 400, color: 'var(--ink)' }}>Once-off workout</div>
                 </button>
+
+                {/* Activities section */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '12px 4px 4px' }}>
+                  Activities
+                </div>
+                {activities.map(a => (
+                  <button
+                    key={a.id}
+                    onClick={() => handleStartActivity(a)}
+                    style={{
+                      width: '100%', textAlign: 'left', background: 'none', border: 'none',
+                      padding: '12px 4px', cursor: 'pointer', fontFamily: 'inherit',
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      borderBottom: '1px solid var(--border)',
+                    }}
+                  >
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+                      background: 'var(--surface-2)', color: 'var(--ink-2)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Icon name="route" size={13} />
+                    </div>
+                    <div style={{ flex: 1, fontSize: 15, fontWeight: 400, color: 'var(--ink)' }}>{a.name}</div>
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+                      padding: '2px 6px', borderRadius: 4,
+                      background: 'var(--surface-2)', color: 'var(--muted)',
+                      textTransform: 'uppercase',
+                    }}>
+                      {a.type === 'run' ? 'Run' : 'Sport'}
+                    </span>
+                  </button>
+                ))}
               </div>
             </>
           )}

@@ -7,6 +7,7 @@ import { useActiveWorkout } from '../context/ActiveWorkoutContext'
 import BottomSheet from '../components/BottomSheet'
 import BottomNav from '../components/BottomNav'
 import IronLogLogo from '../components/IronLogLogo'
+import ActivitySearchModal from '../components/ActivitySearchModal'
 import { Icon } from '../components/Icon'
 
 function LivePill({ activeWorkout, navigate }) {
@@ -163,6 +164,8 @@ export default function Home() {
   const { journeys } = useJourneys()
   const { activeWorkout } = useActiveWorkout()
   const [picked, setPicked] = useState(null)
+  const [showActivityPicker, setShowActivityPicker] = useState(false)
+  const [showActivitySearch, setShowActivitySearch] = useState(false)
 
   const lastSession = sessions[0] ?? null
   const weekCount = workoutsThisWeek(sessions)
@@ -288,9 +291,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* Once-off workout */}
+        {/* Once-off activity */}
         <button
-          onClick={() => navigate('/workout/freestyle')}
+          onClick={() => setShowActivityPicker(true)}
           className="card row-tap"
           style={{
             width: '100%', textAlign: 'left', cursor: 'pointer',
@@ -307,8 +310,8 @@ export default function Home() {
             <Icon name="sparkle" size={18} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--ink)' }}>Once-off workout</div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Quick session, won't save as routine</div>
+            <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--ink)' }}>Once-off activity</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Workout or sport — won't save as routine</div>
           </div>
           <Icon name="chev-r" size={16} style={{ color: 'var(--faint)', flexShrink: 0 }} />
         </button>
@@ -326,6 +329,69 @@ export default function Home() {
           />
         </BottomSheet>
       )}
+
+      {/* Once-off activity type picker */}
+      <BottomSheet open={showActivityPicker} onClose={() => setShowActivityPicker(false)} title="Once-off activity">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <button
+            onClick={() => { setShowActivityPicker(false); navigate('/workout/freestyle') }}
+            className="card row-tap"
+            style={{
+              width: '100%', textAlign: 'left', cursor: 'pointer',
+              padding: '16px 16px',
+              display: 'flex', alignItems: 'center', gap: 14,
+              background: 'var(--surface-2)', border: '1px solid var(--border)',
+            }}
+          >
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: 'var(--bg)', color: 'var(--ink)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Icon name="dumbbell" size={20} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--ink)' }}>Workout</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Log sets, reps &amp; weights live</div>
+            </div>
+            <Icon name="chev-r" size={16} style={{ color: 'var(--faint)', flexShrink: 0 }} />
+          </button>
+
+          <button
+            onClick={() => { setShowActivityPicker(false); setShowActivitySearch(true) }}
+            className="card row-tap"
+            style={{
+              width: '100%', textAlign: 'left', cursor: 'pointer',
+              padding: '16px 16px',
+              display: 'flex', alignItems: 'center', gap: 14,
+              background: 'var(--surface-2)', border: '1px solid var(--border)',
+            }}
+          >
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: 'var(--bg)', color: 'var(--ink)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Icon name="route" size={20} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--ink)' }}>Activity</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Log a sport after completing it</div>
+            </div>
+            <Icon name="chev-r" size={16} style={{ color: 'var(--faint)', flexShrink: 0 }} />
+          </button>
+        </div>
+      </BottomSheet>
+
+      {/* Activity search modal */}
+      <ActivitySearchModal
+        open={showActivitySearch}
+        onClose={() => setShowActivitySearch(false)}
+        onSelect={(activity) => {
+          setShowActivitySearch(false)
+          navigate('/activity/log', { state: { activity } })
+        }}
+      />
     </div>
   )
 }

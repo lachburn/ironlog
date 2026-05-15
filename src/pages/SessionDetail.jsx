@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useHistory } from '../hooks/useHistory'
+import { useJourneys } from '../hooks/useJourneys'
 import { useWeightUnit } from '../context/WeightUnitContext'
 import BottomSheet from '../components/BottomSheet'
 import { Icon } from '../components/Icon'
@@ -55,23 +56,27 @@ export default function SessionDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { fetchSession, deleteWorkout } = useHistory()
+  const { unlinkSession } = useJourneys()
   const { unit, toDisplay } = useWeightUnit()
   const [session, setSession] = useState(null)
   const [exercises, setExercises] = useState([])
+  const [activityLog, setActivityLog] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showDeleteSheet, setShowDeleteSheet] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    fetchSession(id).then(({ session: s, sets }) => {
+    fetchSession(id).then(({ session: s, sets, activityLog: al }) => {
       setSession(s)
       setExercises(groupByExercise(sets || []))
+      setActivityLog(al || null)
       setLoading(false)
     })
   }, [id]) // eslint-disable-line
 
   const handleDelete = async () => {
     setDeleting(true)
+    await unlinkSession(id)
     await deleteWorkout(id)
     navigate('/history', { replace: true })
   }
@@ -84,8 +89,28 @@ export default function SessionDetail() {
     )
   }
 
+  const isActivity = session.session_type === 'activity'
   const duration = formatDuration(session.started_at, session.completed_at)
   const totalSets = exercises.reduce((a, e) => a + e.sets.length, 0)
+
+  function fmtDurSecs(secs) {
+    if (!secs) return '—'
+    return `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`
+  }
+
+  const activityStats = isActivity && activityLog ? (() => {
+    const isRun = activityLog.activity_type === 'run'
+    const stats = [
+      { v: fmtDurSecs(activityLog.duration_seconds), l: 'duration' },
+      { v: activityLog.avg_heart_rate ? `${activityLog.avg_heart_rate}` : '—', l: 'avg bpm' },
+    ]
+    if (isRun) {
+      stats.push({ v: activityLog.distance_metres ? `${(activityLog.distance_metres / 1000).toFixed(1)}` : '—', l: 'km' })
+    } else {
+      stats.push({ v: activityLog.calories ? `${activityLog.calories}` : '—', l: 'kcal' })
+    }
+    return stats
+  })() : null
 
   return (
     <div style={{
@@ -130,15 +155,26 @@ export default function SessionDetail() {
       <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '0 18px 24px' }}>
         {/* Stats card */}
         <div className="card" style={{ padding: '14px 16px', marginBottom: 14 }}>
-          <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
-            {formatDate(session.completed_at || session.started_at)}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+              {formatDate(session.completed_at || session.started_at)}
+            </div>
+            {isActivity && (
+              <span className="eyebrow" style={{
+                fontSize: 9, padding: '2px 8px', borderRadius: 5,
+                background: 'var(--accent-soft)', color: 'var(--accent)',
+                letterSpacing: '0.06em',
+              }}>
+                Activity
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 14 }}>
-            {[
+            {(isActivity && activityStats ? activityStats : [
               { v: exercises.length, l: 'exercises' },
               { v: totalSets, l: 'sets' },
               { v: duration, l: 'duration' },
-            ].map((x, i) => (
+            ]).map((x, i) => (
               <div key={i} style={{
                 flex: 1,
                 borderLeft: i > 0 ? '1px solid var(--border)' : 'none',
@@ -153,7 +189,47 @@ export default function SessionDetail() {
           </div>
         </div>
 
-        {exercises.length === 0 ? (
+        {isActivity ? (
+          activityLog ? (
+            <div className="card" style={{ padding: '14px 16px', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <div style={{ flex: 1, fontWeight: 600, fontSize: 15, color: 'var(--ink)' }}>
+                  {activityLog.activity_name}
+                </div>
+                <span className="eyebrow" style={{
+                  fontSize: 9, padding: '2px 6px', borderRadius: 5,
+                  background: 'var(--surface-2)', color: 'var(--muted)',
+                  letterSpacing: '0.06em',
+                }}>
+                  {activityLog.activity_type === 'run' ? 'Run' : 'Sport'}
+                </span>
+              </div>
+              {[
+                { label: 'Duration', value: fmtDurSecs(activityLog.duration_seconds), unit: 'mins' },
+                { label: 'Avg Heart Rate', value: activityLog.avg_heart_rate ? `${activityLog.avg_heart_rate}` : null, unit: 'bpm' },
+                activityLog.activity_type === 'run'
+                  ? { label: 'Distance', value: activityLog.distance_metres ? `${(activityLog.distance_metres / 1000).toFixed(1)}` : null, unit: 'km' }
+                  : { label: 'Calories Burnt', value: activityLog.calories ? `${activityLog.calories}` : null, unit: 'kcal' },
+              ].map((row, i, arr) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 0',
+                  borderTop: i === 0 ? 'none' : '1px solid var(--border)',
+                }}>
+                  <div style={{ fontSize: 14, color: 'var(--muted)' }}>{row.label}</div>
+                  <div className="mono" style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 600 }}>
+                    {row.value ?? '—'}{' '}
+                    <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>{row.unit}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ color: 'var(--muted)', textAlign: 'center', paddingTop: 40, fontSize: 14 }}>
+              No activity data found.
+            </div>
+          )
+        ) : exercises.length === 0 ? (
           <div style={{ color: 'var(--muted)', textAlign: 'center', paddingTop: 40, fontSize: 14 }}>
             No sets logged for this session.
           </div>

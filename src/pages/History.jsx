@@ -112,6 +112,7 @@ function WorkoutsList({ sessions, navigate }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {list.map(s => {
               const sets = (s.logged_sets || []).length
+              const isActivity = s.session_type === 'activity'
               return (
                 <button
                   key={s.id}
@@ -126,10 +127,10 @@ function WorkoutsList({ sessions, navigate }) {
                 >
                   <div style={{
                     width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-                    background: 'var(--surface-2)',
+                    background: isActivity ? 'var(--accent-soft)' : 'var(--surface-2)',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <div style={{ fontSize: 9, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                    <div style={{ fontSize: 9, color: isActivity ? 'var(--accent)' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
                       {new Date(s.completed_at).toLocaleDateString('en-AU', { month: 'short' })}
                     </div>
                     <div className="mono" style={{ fontSize: 18, fontWeight: 600, lineHeight: 1, color: 'var(--ink)' }}>
@@ -140,7 +141,7 @@ function WorkoutsList({ sessions, navigate }) {
                     <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--ink)' }}>{s.routine_name || 'Once-off'}</div>
                     <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
                       {fmtDur(s.started_at, s.completed_at)}
-                      {sets > 0 ? ` · ${sets} sets` : ''}
+                      {isActivity ? ' · Activity' : ` · Workout${sets > 0 ? ` · ${sets} sets` : ''}`}
                     </div>
                   </div>
                   <Icon name="chev-r" size={16} style={{ color: 'var(--faint)', flexShrink: 0 }} />
@@ -277,7 +278,7 @@ export default function History() {
           padding: 4, borderRadius: 12, marginTop: 10,
         }}>
           {[
-            { id: 'workouts', label: 'Workouts' },
+            { id: 'workouts', label: 'Activities' },
             { id: 'exercises', label: 'Exercises' },
           ].map(t => {
             const active = subtab === t.id

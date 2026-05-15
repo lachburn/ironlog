@@ -1,20 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useJourneys } from '../hooks/useJourneys'
 import { useRoutines } from '../hooks/useRoutines'
 import { supabase } from '../lib/supabase'
 import { Icon } from '../components/Icon'
 import BottomSheet from '../components/BottomSheet'
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const DAY_FULL   = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const MONTHS     = ['January','February','March','April','May','June',
-                    'July','August','September','October','November','December']
-
-function daysUntil(iso) {
-  if (!iso) return null
-  return Math.ceil((new Date(iso) - new Date()) / 86400000)
-}
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December']
 
 function formatDisplay(iso) {
   if (!iso) return ''
@@ -57,19 +50,18 @@ function CalendarPicker({ value, onChange }) {
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />
           const cellDate = new Date(vY, vM, d)
-          const past = cellDate < today
           const isToday = cellDate.getTime() === today.getTime()
           const isSel = sel && sel.getFullYear() === vY && sel.getMonth() === vM && sel.getDate() === d
           return (
             <button
               key={i}
-              onClick={() => !past && onChange(`${vY}-${String(vM + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`)}
+              onClick={() => onChange(`${vY}-${String(vM + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`)}
               style={{
                 height: 40, borderRadius: 10, border: 'none', fontFamily: 'inherit',
                 background: isSel ? 'var(--accent)' : isToday ? 'var(--surface-2)' : 'transparent',
-                color: past ? 'var(--faint)' : isSel ? '#111' : 'var(--ink)',
+                color: isSel ? '#111' : 'var(--ink)',
                 fontSize: 14, fontWeight: isSel ? 700 : 400,
-                cursor: past ? 'default' : 'pointer',
+                cursor: 'pointer',
               }}
             >{d}</button>
           )
@@ -79,9 +71,10 @@ function CalendarPicker({ value, onChange }) {
   )
 }
 
-export default function JourneyCreate() {
+export default function JourneyEdit() {
+  const { id } = useParams()
   const navigate = useNavigate()
-  const { createJourney } = useJourneys()
+  const { journeys, updateJourney } = useJourneys()
   const { routines } = useRoutines()
   const [activities, setActivities] = useState([])
 
@@ -91,31 +84,66 @@ export default function JourneyCreate() {
     })
   }, [])
 
+  const journey = journeys.find(j => j.id === id)
+
   const [title, setTitle] = useState('')
   const [goal, setGoal] = useState('')
-  const [targetDate, setTargetDate] = useState(() => {
-    const d = new Date(); d.setMonth(d.getMonth() + 3)
-    return d.toISOString().slice(0, 10)
-  })
-  const [days, setDays] = useState({ 1: true, 3: true, 6: true })
-  const [types, setTypes] = useState({ 1: 'Tempo Run', 3: 'Intervals', 6: 'Long Run' })
-  const [routineLinks, setRoutineLinks] = useState({})
-  const [activityLinks, setActivityLinks] = useState({})
-  // null | 'calendar' | { kind: 'type', day: n } | { kind: 'linked', day: n }
-  const [openSheet, setOpenSheet] = useState(null)
+  const [targetDate, setTargetDate] = useState('')
+  // itemEdits: { [itemId]: { type, routine_id, activity_id } }
+  const [itemEdits, setItemEdits] = useState({})
+  const [initialized, setInitialized] = useState(false)
 
+  const [openSheet, setOpenSheet] = useState(null) // null | 'calendar' | { kind: 'linked', itemId }
   const [saving, setSaving] = useState(false)
-  const canSave = title.trim() && targetDate && Object.values(days).some(Boolean)
-  const toggleDay = (i) => setDays(s => ({ ...s, [i]: !s[i] }))
 
-  const handleCreate = async () => {
-    if (!canSave || saving) return
-    setSaving(true)
-    await createJourney({ title, goal, target_date: targetDate, days, types, routineLinks, activityLinks })
-    navigate('/journeys')
+  useEffect(() => {
+    if (journey && !initialized) {
+      setTitle(journey.title || '')
+      setGoal(journey.goal || '')
+      setTargetDate(journey.target_date ? journey.target_date.slice(0, 10) : '')
+      const edits = {}
+      for (const item of journey.items) {
+        edits[item.id] = {
+          type: item.type || '',
+          routine_id: item.routine_id || null,
+          activity_id: item.activity_id || null,
+        }
+      }
+      setItemEdits(edits)
+      setInitialized(true)
+    }
+  }, [journey, initialized])
+
+  if (!journey) {
+    return (
+      <div style={{ background: 'var(--bg)', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'var(--muted)', fontSize: 14 }}>Journey not found.</div>
+      </div>
+    )
   }
 
-  const d = daysUntil(targetDate)
+  const canSave = title.trim() && targetDate
+
+  const handleSave = async () => {
+    if (!canSave || saving) return
+    setSaving(true)
+    const itemUpdates = journey.items.map(item => ({
+      id: item.id,
+      type: itemEdits[item.id]?.type ?? item.type,
+      routine_id: itemEdits[item.id]?.routine_id ?? null,
+      activity_id: itemEdits[item.id]?.activity_id ?? null,
+    }))
+    await updateJourney(id, { title, goal, target_date: targetDate, itemUpdates })
+    navigate(`/journeys/${id}`, { replace: true })
+  }
+
+  const setItemField = (itemId, field, value) => {
+    setItemEdits(prev => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], [field]: value },
+    }))
+  }
+
   const activeSheet = openSheet
 
   return (
@@ -127,7 +155,7 @@ export default function JourneyCreate() {
       <div style={{ flexShrink: 0, padding: '8px 18px 4px' }}>
         <div style={{ display: 'flex', alignItems: 'center', minHeight: 44, gap: 10 }}>
           <button
-            onClick={() => navigate('/journeys')}
+            onClick={() => navigate(`/journeys/${id}`)}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               width: 36, height: 36, borderRadius: 10,
@@ -138,9 +166,21 @@ export default function JourneyCreate() {
             <Icon name="chev-l" size={18} />
           </button>
           <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, fontSize: 15, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
-            New Journey
+            Edit Journey
           </div>
-          <div style={{ width: 36 }} />
+          <button
+            onClick={handleSave}
+            disabled={!canSave || saving}
+            style={{
+              background: 'var(--ink)', color: 'var(--bg)',
+              border: 'none', borderRadius: 999,
+              padding: '7px 16px', cursor: 'pointer',
+              fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+              opacity: (!canSave || saving) ? 0.4 : 1,
+            }}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
         </div>
       </div>
 
@@ -186,62 +226,45 @@ export default function JourneyCreate() {
           <div style={{ flex: 1, fontSize: 16, fontWeight: 500, color: 'var(--ink)' }}>
             {formatDisplay(targetDate)}
           </div>
-          {d !== null && (
-            <div className="mono" style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{d}d</div>
-          )}
           <Icon name="chev-down" size={14} style={{ color: 'var(--faint)' }} />
         </button>
 
-        {/* Training days toggle */}
-        <div className="eyebrow" style={{ padding: '8px 4px 8px' }}>Training days</div>
-        <div className="card" style={{ padding: 12, marginBottom: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
-            {DAY_LABELS.map((label, i) => (
-              <button
-                key={i}
-                onClick={() => toggleDay(i)}
-                style={{
-                  height: 44, borderRadius: 10,
-                  border: '1px solid ' + (days[i] ? 'transparent' : 'var(--border)'),
-                  background: days[i] ? 'var(--ink)' : 'transparent',
-                  color: days[i] ? 'var(--bg)' : 'var(--ink-2)',
-                  fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
-                  cursor: 'pointer', letterSpacing: '0.01em',
-                }}
-              >{label}</button>
-            ))}
-          </div>
-        </div>
-
-        {/* Per-day config cards */}
+        {/* Schedule items */}
+        <div className="eyebrow" style={{ padding: '8px 4px 8px' }}>Schedule</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-          {DAY_LABELS.map((label, i) => {
-            if (!days[i]) return null
-            const linkedRoutine = routines.find(r => r.id === routineLinks[i])
-            const linkedActivity = activities.find(a => a.id === activityLinks[i])
+          {journey.items.map(item => {
+            const edit = itemEdits[item.id] || {}
+            const linkedRoutine = routines.find(r => r.id === edit.routine_id)
+            const linkedActivity = activities.find(a => a.id === edit.activity_id)
             const linkedLabel = linkedRoutine?.name || linkedActivity?.name || null
             const isActivityLinked = !!linkedActivity
-            return (
-              <div key={i} className="card" style={{ padding: 0, overflow: 'hidden' }}>
 
-                {/* Session type row */}
-                <div style={{
-                  padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12,
-                }}>
+            return (
+              <div key={item.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+
+                {/* Date + type row */}
+                <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{
-                    width: 36, height: 36, borderRadius: 9, flexShrink: 0,
-                    background: 'var(--surface-2)', color: 'var(--ink-2)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700,
-                  }}>{label.slice(0, 1)}</div>
+                    width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                    background: item.completed ? 'color-mix(in oklch, var(--good) 12%, transparent)' : 'var(--surface-2)',
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <div style={{ fontSize: 9, color: item.completed ? 'var(--good)' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                      {new Date(item.date).toLocaleDateString('en-AU', { weekday: 'short' })}
+                    </div>
+                    <div className="mono" style={{ fontSize: 17, fontWeight: 600, lineHeight: 1, color: item.completed ? 'var(--good)' : 'var(--ink)' }}>
+                      {new Date(item.date).getDate()}
+                    </div>
+                  </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
-                      {DAY_FULL[i]}
+                      {new Date(item.date).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' })}
                     </div>
                     <input
-                      value={types[i] || ''}
-                      onChange={e => setTypes(t => ({ ...t, [i]: e.target.value }))}
-                      placeholder="e.g. Tempo Run, Long Run…"
+                      value={edit.type || ''}
+                      onChange={e => setItemField(item.id, 'type', e.target.value)}
+                      placeholder="Session type…"
                       style={{
                         background: 'none', border: 'none', outline: 'none',
                         fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
@@ -249,14 +272,19 @@ export default function JourneyCreate() {
                       }}
                     />
                   </div>
+                  {item.completed && (
+                    <div style={{ flexShrink: 0, color: 'var(--good)' }}>
+                      <Icon name="check" size={16} stroke={2.4} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Divider */}
-                <div style={{ height: 1, background: 'var(--border)', marginLeft: 62 }} />
+                <div style={{ height: 1, background: 'var(--border)', marginLeft: 70 }} />
 
                 {/* Workout / Activity link row */}
                 <button
-                  onClick={() => setOpenSheet({ kind: 'linked', day: i })}
+                  onClick={() => setOpenSheet({ kind: 'linked', itemId: item.id })}
                   style={{
                     width: '100%', textAlign: 'left', background: 'none', border: 'none',
                     padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12,
@@ -285,13 +313,9 @@ export default function JourneyCreate() {
             )
           })}
         </div>
-
-        <button className="btn btn-primary" disabled={!canSave || saving} onClick={handleCreate}>
-          {saving ? 'Creating…' : 'Create Journey'}
-        </button>
       </div>
 
-      {/* ── Calendar sheet ──────────────────────────────── */}
+      {/* Calendar sheet */}
       <BottomSheet open={activeSheet === 'calendar'} onClose={() => setOpenSheet(null)} title="Select date">
         <CalendarPicker
           value={targetDate}
@@ -299,35 +323,37 @@ export default function JourneyCreate() {
         />
       </BottomSheet>
 
-      {/* ── Workout / Activity picker sheet ─────────────── */}
+      {/* Workout / Activity picker sheet */}
       <BottomSheet
         open={activeSheet?.kind === 'linked'}
         onClose={() => setOpenSheet(null)}
-        title={activeSheet?.kind === 'linked' ? `${DAY_FULL[activeSheet.day]}` : ''}
+        title="Workout / Activity"
       >
         {activeSheet?.kind === 'linked' && (() => {
-          const day = activeSheet.day
-          const selRoutine = routineLinks[day] ?? null
-          const selActivity = activityLinks[day] ?? null
-          const selectRoutine = (id) => {
-            setRoutineLinks(l => ({ ...l, [day]: id }))
-            setActivityLinks(l => ({ ...l, [day]: null }))
+          const itemId = activeSheet.itemId
+          const edit = itemEdits[itemId] || {}
+          const selRoutine = edit.routine_id ?? null
+          const selActivity = edit.activity_id ?? null
+
+          const selectRoutine = (rid) => {
+            setItemField(itemId, 'routine_id', rid)
+            setItemField(itemId, 'activity_id', null)
             setOpenSheet(null)
           }
-          const selectActivity = (id) => {
-            setActivityLinks(l => ({ ...l, [day]: id }))
-            setRoutineLinks(l => ({ ...l, [day]: null }))
+          const selectActivity = (aid) => {
+            setItemField(itemId, 'activity_id', aid)
+            setItemField(itemId, 'routine_id', null)
             setOpenSheet(null)
           }
           const clearBoth = () => {
-            setRoutineLinks(l => ({ ...l, [day]: null }))
-            setActivityLinks(l => ({ ...l, [day]: null }))
+            setItemField(itemId, 'routine_id', null)
+            setItemField(itemId, 'activity_id', null)
             setOpenSheet(null)
           }
           const isNone = !selRoutine && !selActivity
+
           return (
             <>
-              {/* None */}
               <button
                 onClick={clearBoth}
                 style={{
@@ -350,7 +376,6 @@ export default function JourneyCreate() {
                 {isNone && <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />}
               </button>
 
-              {/* Workouts section */}
               {routines.length > 0 && (
                 <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '12px 4px 4px' }}>
                   Workouts
@@ -385,7 +410,6 @@ export default function JourneyCreate() {
                 )
               })}
 
-              {/* Activities section */}
               {activities.length > 0 && (
                 <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '12px 4px 4px' }}>
                   Activities
@@ -393,7 +417,6 @@ export default function JourneyCreate() {
               )}
               {activities.map(a => {
                 const selected = selActivity === a.id
-                const isRun = a.type === 'run'
                 return (
                   <button
                     key={a.id}
@@ -421,7 +444,7 @@ export default function JourneyCreate() {
                       background: 'var(--surface-2)', color: 'var(--muted)',
                       textTransform: 'uppercase', marginRight: 6,
                     }}>
-                      {isRun ? 'Run' : 'Sport'}
+                      {a.type === 'run' ? 'Run' : 'Sport'}
                     </span>
                     {selected && <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />}
                   </button>

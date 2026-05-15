@@ -9,6 +9,7 @@ import Home from './pages/Home'
 import EditRoutine from './pages/EditRoutine'
 import ActiveWorkout from './pages/ActiveWorkout'
 import FreestyleWorkout from './pages/FreestyleWorkout'
+import LogActivity from './pages/LogActivity'
 import History from './pages/History'
 import SessionDetail from './pages/SessionDetail'
 import ExerciseHistory from './pages/ExerciseHistory'
@@ -17,6 +18,7 @@ import Settings from './pages/Settings'
 import Journeys from './pages/Journeys'
 import JourneyDetail from './pages/JourneyDetail'
 import JourneyCreate from './pages/JourneyCreate'
+import JourneyEdit from './pages/JourneyEdit'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -38,6 +40,7 @@ function AppRoutes() {
       <Route path="/routines/new" element={<ProtectedRoute><EditRoutine /></ProtectedRoute>} />
       <Route path="/routines/:id/edit" element={<ProtectedRoute><EditRoutine /></ProtectedRoute>} />
       <Route path="/workout/freestyle" element={<ProtectedRoute><FreestyleWorkout /></ProtectedRoute>} />
+      <Route path="/activity/log" element={<ProtectedRoute><LogActivity /></ProtectedRoute>} />
       <Route path="/workout/:id" element={<ProtectedRoute><ActiveWorkout /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
       <Route path="/history/:id" element={<ProtectedRoute><SessionDetail /></ProtectedRoute>} />
@@ -46,6 +49,7 @@ function AppRoutes() {
       <Route path="/journeys" element={<ProtectedRoute><Journeys /></ProtectedRoute>} />
       <Route path="/journeys/new" element={<ProtectedRoute><JourneyCreate /></ProtectedRoute>} />
       <Route path="/journeys/:id" element={<ProtectedRoute><JourneyDetail /></ProtectedRoute>} />
+      <Route path="/journeys/:id/edit" element={<ProtectedRoute><JourneyEdit /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
